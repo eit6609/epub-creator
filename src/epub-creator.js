@@ -6,7 +6,7 @@ const
     { JSMLSerializer, JSMLUtils: { getChildren, validateJSML, xmlDeclaration, docType } } = require('@eit6609/jsml'),
     { walkAsync } = require('@eit6609/walker'),
     { join } = require('path'),
-    { promisify } = require('util'),
+    { inspect, promisify } = require('util'),
     NavMapBuilder = require('./navmap-builder.js'),
     Joi = require('@hapi/joi'),
     JSZip = require('jszip'),
@@ -107,6 +107,7 @@ class EPUBCreator {
     checkOptions (options, mockSchema) {
         const { error } = (mockSchema || optionsSchema).validate(options);
         if (error) {
+            error.message = `Invalid options ${inspect(options)}: ${error.message}`;
             throw error;
         }
     }

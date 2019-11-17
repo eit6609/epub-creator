@@ -59,7 +59,7 @@ describe('EPUBCreator', () => {
             expect(sut.metadata).toBe('metadata');
             expect(sut.cover).toBe('a-cover');
             expect(sut.fileName2id).toEqual(new Map());
-            // expect(sut.checkOptions).toHaveBeenCalledWith(options, undefined);
+            expect(sut.checkOptions).toHaveBeenCalledWith(options, undefined);
             expect(sut.prepareMetadata).toHaveBeenCalledWith(options.metadata, options.simpleMetadata);
         });
     });
@@ -85,7 +85,7 @@ describe('EPUBCreator', () => {
             try {
                 sut.checkOptions('options', mockSchema);
             } catch (error) {
-                expect(error.message).toBe('a maessage');
+                expect(error.message).toBe('Invalid options \'options\': a maessage');
             }
         });
     });
