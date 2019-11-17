@@ -1,5 +1,5 @@
 /node_modules
 /coverage
 /prove
-/spec/fixtures/temp.xml
+/spec/fixtures/temp
 npm-debug.log
