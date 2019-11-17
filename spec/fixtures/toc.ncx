@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+    <head>
+        <meta name="dtb:uid" content="test-identifier" />
+        <meta name="dtb:depth" content="1" />
+        <meta name="dtb:totalPageCount" content="0" />
+        <meta name="dtb:maxPageNumber" content="0" />
+    </head>
+    <docTitle>
+        <text>Test ePUB</text>
+    </docTitle>
+    <navMap>
+        <navPoint id="ncx-000001" playOrder="1">
+            <navLabel>
+                <text>Front Matter</text>
+            </navLabel>
+            <content src="text/front.xhtml" />
+        </navPoint>
+        <navPoint id="ncx-000002" playOrder="2">
+            <navLabel>
+                <text>Chapter One</text>
+            </navLabel>
+            <content src="text/001.xhtml" />
+        </navPoint>
+        <navPoint id="ncx-000003" playOrder="3">
+            <navLabel>
+                <text>Chapter Two</text>
+            </navLabel>
+            <content src="text/002.xhtml" />
+        </navPoint>
+    </navMap>
+</ncx>

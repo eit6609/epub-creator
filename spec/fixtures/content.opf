@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package version="2.0" xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+        <dc:date>2000-01-01T00:00:00.000Z</dc:date>
+        <dc:identifier id="BookId" opf:scheme="uuid">test-identifier</dc:identifier>
+        <dc:language>en</dc:language>
+        <dc:title>Test ePUB</dc:title>
+        <dc:creator opf:role="aut">epub-creator integration spec</dc:creator>
+        <meta name="cover" content="id-000002" />
+    </metadata>
+    <manifest>
+        <item id="id-toc" href="toc.ncx" media-type="application/x-dtbncx+xml" />
+        <item id="id-cover" href="cover-page.html" media-type="application/xhtml+xml" />
+        <item id="id-000001" href="images/001.jpg" media-type="image/jpeg" />
+        <item id="id-000002" href="images/010.jpg" media-type="image/jpeg" />
+        <item id="id-000003" href="images/epub.svg" media-type="image/svg+xml" />
+        <item id="id-000004" href="images/toolbox.png" media-type="image/png" />
+        <item id="id-000005" href="style/epub.css" media-type="text/css" />
+        <item id="id-000006" href="text/001.xhtml" media-type="application/xhtml+xml" />
+        <item id="id-000007" href="text/002.xhtml" media-type="application/xhtml+xml" />
+        <item id="id-000008" href="text/front.xhtml" media-type="application/xhtml+xml" />
+    </manifest>
+    <spine toc="id-toc">
+        <itemref idref="id-cover" />
+        <itemref idref="id-000008" />
+        <itemref idref="id-000006" />
+        <itemref idref="id-000007" />
+    </spine>
+</package>
