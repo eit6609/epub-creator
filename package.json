@@ -23,7 +23,7 @@
   "license": "ISC",
   "devDependencies": {
     "eslint": "^5.4.0",
-    "istanbul": "^0.4.5",
+    "istanbul": "^1.1.0-alpha.1",
     "jasmine": "^2.5.2",
     "jasmine-core": "^2.5.2",
     "jasmine-expect": "^3.6.0",
@@ -31,8 +31,10 @@
     "jasmine-spec-reporter": "^3.2.0"
   },
   "dependencies": {
-    "@eit6609/jsml": "^1.0.1",
+    "@eit6609/jsml": "^2.0.0",
+    "@eit6609/walker": "^1.0.0",
     "@hapi/joi": "^16.1.7",
+    "bluebird": "^3.7.1",
     "jszip": "^3.2.2",
     "lodash": "^4.17.15",
     "uuid": "^3.3.3"
