@@ -1,21 +1,31 @@
 'use strict';
 
 const
-    { cloneDeep, difference, filter, find, forEach, isUndefined } = require('lodash'),
-    { createWriteStream, readFileSync, readdirSync, statSync } = require('fs'),
-    { JSMLSerializer, JSMLUtils: { getChildren, validate } } = require('@eit6609/jsml'),
+    { cloneDeep, find, forEach, isUndefined } = require('lodash'),
+    { readFile, writeFile } = require('fs'),
+    { JSMLSerializer, JSMLUtils: { getChildren, validateJSML, xmlDeclaration, docType } } = require('@eit6609/jsml'),
+    { walkAsync } = require('@eit6609/walker'),
     { join } = require('path'),
+    { promisify } = require('util'),
+    NavMapBuilder = require('./navmap-builder.js'),
     Joi = require('@hapi/joi'),
     JSZip = require('jszip'),
+    Promise = require('bluebird'),
     uuid = require('uuid');
 
 const
+    readFilePromise = promisify(readFile),
+    writeFilePromise = promisify(writeFile);
+
+const
+    DOCUMENT = '!DOCUMENT',
+    XML_DECLARATION = xmlDeclaration(),
+    NCX_DOCTYPE =
+        docType('ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd"'),
+    HTML_DOCTYPE =
+        docType('html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"'),
     METADATA_ATTRIBUTES =
         { 'xmlns:dc': 'http://purl.org/dc/elements/1.1/', 'xmlns:opf': 'http://www.idpf.org/2007/opf' },
-    TOC_DOCTYPE =
-        '<!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">',
-    XHTML_DOCTYPE =
-        '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">',
     EPUB_MIMETYPE = 'application/epub+zip',
     TOC_MEDIA_TYPE = 'application/x-dtbncx+xml',
     CONTENT_MEDIA_TYPE = 'application/oebps-package+xml',
@@ -35,118 +45,24 @@ const
     DEFAULT_LANGUAGE = 'en',
     DEFAULT_TITLE = 'Untitled';
 
-const FORMATTER = new Intl.NumberFormat('en', { minimumIntegerDigits: 6, useGrouping: false });
+const
+    FORMATTER = new Intl.NumberFormat('en', { minimumIntegerDigits: 6, useGrouping: false });
 
-const metadataItemSchema = Joi.array();
-const simpleMetadataSchema = Joi.object({
-    title: Joi.string(),
-    author: Joi.string(),
-    language: Joi.string()
-});
-let tocItemSchema = Joi.object({
-    label: Joi.string().required(),
-    href: Joi.string().required(),
-});
-tocItemSchema = tocItemSchema.append({
-    children: Joi.array().items(tocItemSchema)
-});
 const optionsSchema = Joi.object({
     contentDir: Joi.string().required(),
-    metadata: Joi.array().items(metadataItemSchema),
-    simpleMetadata: simpleMetadataSchema,
+    metadata: Joi.array(),
+    simpleMetadata: Joi.object({
+        title: Joi.string(),
+        author: Joi.string(),
+        language: Joi.string()
+    }),
     spine: Joi.array().items(Joi.string()).unique().required(),
-    toc: Joi.array().items(tocItemSchema).required(),
+    toc: Joi.array().required(),
     cover: Joi.string()
 });
 
-/*
-TOC, un albero di link
-va tradotto nell'albero dei NavPoint, che è un JsonML
-[{
-    label: 'Part 1',
-    href: 'part1.html'
-    children: [{
-        label: 'Chapter 1',
-        href: 'chapter1.html'
-    }, {
-        label: 'Chapter 2',
-        href: 'chapter2.html'
-    }]
-}, {
-    label: 'Part 2',
-    href: 'part1.html'
-    children: [{
-        label: 'Chapter 3',
-        href: 'chapter1.html'
-    }]
-}]
-
-METADATA, un JsonML
-Siccome non c'è un formato unico per rappresentare un XML con un Object, cioè ogni parser/builder usa il suo, tanto
-vale usare JsonML, che è un formato come gli altri.
-*/
-
-class NavMapBuilder {
-
-    constructor (epubBuilder) {
-        this.epubBuilder = epubBuilder;
-    }
-
-    build (items) {
-        this.result = ['navMap'];
-        this.counter = 1;
-        this.maxDepth = 0;
-        forEach(items, (item) => this.result.push(this.buildNavPoint(item)));
-    }
-
-    buildNavPoint (item, level = 1) {
-        this.checkItem(item);
-        if (this.maxDepth < level) {
-            this.maxDepth = level;
-        }
-        const navPoint = [
-            'navPoint',
-            { id: `ncx-${FORMATTER.format(this.counter)}`, playOrder: `${this.counter}` },
-            ['navLabel', ['text', item.label]],
-            ['content', { src: item.href }]
-        ];
-        this.counter++;
-        if (!isUndefined(item.children)) {
-            forEach(item.children, (child) => navPoint.push(this.buildNavPoint(child, level++)));
-        }
-        return navPoint;
-    }
-
-    checkItem (item) {
-        this.epubBuilder.getFileId(item.href);
-    }
-
-}
-
-class FileSistemWalker {
-
-    constructor (root) {
-        this.root = root;
-    }
-
-    walk () {
-        const result = [];
-        this.walkRecursive(this.root, result);
-        return result;
-    }
-
-    walkRecursive (dirpath, result) {
-        const names = readdirSync(dirpath);
-        const dirNames = filter(names, (name) => statSync(join(dirpath, name)).isDirectory());
-        const fileNames = difference(names, dirNames);
-        result.push([dirpath, dirNames, fileNames]);
-        forEach(dirNames, (name) => this.walkRecursive(join(dirpath, name), result));
-    }
-
-}
-
-function getElementTextByName (name, jsonml) {
-    const element = find(jsonml, (element) => element[0] === name);
+function getElementTextByName (name, jsml) {
+    const element = find(jsml, ([tag]) => tag === name);
     if (isUndefined(element)) {
         return element;
     }
@@ -176,8 +92,10 @@ class EPUBCreator {
         }
     }
 
-    constructor (options) {
-        this.checkOptions(options);
+    constructor (options, mockSchema) {
+        if (!mockSchema) {
+            this.checkOptions(options, mockSchema);
+        }
         this.contentDir = options.contentDir;
         this.spine = options.spine;
         this.toc = options.toc;
@@ -186,8 +104,8 @@ class EPUBCreator {
         this.fileName2id = new Map();
     }
 
-    checkOptions (options) {
-        const { error } = optionsSchema.validate(options);
+    checkOptions (options, mockSchema) {
+        const { error } = (mockSchema || optionsSchema).validate(options);
         if (error) {
             throw error;
         }
@@ -195,6 +113,7 @@ class EPUBCreator {
 
     // eslint-disable-next-line max-statements
     prepareMetadata (metadata = [], simpleMetadata = {}) {
+        validateJSML(['metadata', ...metadata]);
         const extraElements = [];
         if (isUndefined(getElementTextByName('dc:identifier', metadata))) {
             extraElements.push(['dc:identifier', { 'id': 'BookId', 'opf:scheme': 'uuid' }, `urn:uuid:${uuid.v4()}`]);
@@ -214,7 +133,6 @@ class EPUBCreator {
             extraElements.push(['dc:creator', { 'opf:role': 'aut' }, simpleMetadata.author]);
         }
         metadata = metadata.concat(extraElements);
-        validate(['metadata', ...metadata]);
         return metadata;
     }
 
@@ -225,36 +143,70 @@ class EPUBCreator {
     getFileId (name) {
         const id = this.fileName2id.get(name);
         if (isUndefined(id)) {
-            throw new Error(`File not found in manifest: ${name}`);
+            throw new Error(`File not found in manifest: "${name}"`);
         }
         return id;
     }
 
     buildContainer () {
         return [
-            'container',
-            { version: '1.0', xmlns: 'urn:oasis:names:tc:opendocument:xmlns:container' },
+            DOCUMENT,
+            XML_DECLARATION,
             [
-                'rootfiles',
-                ['rootfile', { 'full-path': `${CONTENT_DIR}/${CONTENT_FILENAME}`, 'media-type': CONTENT_MEDIA_TYPE }]
+                'container',
+                { version: '1.0', xmlns: 'urn:oasis:names:tc:opendocument:xmlns:container' },
+                [
+                    'rootfiles',
+                    [
+                        'rootfile',
+                        { 'full-path': `${CONTENT_DIR}/${CONTENT_FILENAME}`, 'media-type': CONTENT_MEDIA_TYPE }
+                    ]
+                ]
             ]
         ];
     }
 
-    buildContent () {
-        // buildManifest() must be called first because it assigns ids to files, needed by buildMetadata(),
-        // buildSpine() and buildTOC()
-        const manifest = this.buildManifest();
+    async buildManifest (walk) {
+        const manifest = [
+            'manifest',
+            ['item', { 'id': TOC_ID, 'href': TOC_FILENAME, 'media-type': TOC_MEDIA_TYPE }],
+        ];
+        if (this.cover) {
+            manifest.push(
+                ['item', { 'id': COVER_PAGE_ID, 'href': COVER_PAGE_FILENAME, 'media-type': COVER_PAGE_MEDIA_TYPE }]
+            );
+        }
+        let counter = 1;
+        walk = walk || walkAsync;
+        for (const promise of walk(this.contentDir)) {
+            const [dirPath, , fileNames] = await promise;
+            forEach(fileNames, (fileName) => {
+                const id = `id-${FORMATTER.format(counter++)}`;
+                const href = join(dirPath, fileName).substring(this.contentDir.length + 1);
+                this.fileName2id.set(href, id);
+                manifest.push(['item', { id, href, 'media-type': EPUBCreator.getMediaTypeFromFilename(fileName) }]);
+            });
+        }
+        return manifest;
+    }
+
+    buildContent (manifest) {
+        const metadata = this.buildMetadata();
+        const spine = this.buildSpine();
         return [
-            'package',
-            {
-                'version': '2.0',
-                'xmlns': 'http://www.idpf.org/2007/opf',
-                'unique-identifier': 'BookId'
-            },
-            this.buildMetadata(),
-            manifest,
-            this.buildSpine()
+            DOCUMENT,
+            XML_DECLARATION,
+            [
+                'package',
+                {
+                    'version': '2.0',
+                    'xmlns': 'http://www.idpf.org/2007/opf',
+                    'unique-identifier': 'BookId'
+                },
+                metadata,
+                manifest,
+                spine
+            ]
         ];
     }
 
@@ -266,29 +218,6 @@ class EPUBCreator {
         return metadata;
     }
 
-    buildManifest () {
-        const manifest = [
-            'manifest',
-            ['item', { 'id': TOC_ID, 'href': TOC_FILENAME, 'media-type': TOC_MEDIA_TYPE }],
-        ];
-        if (this.cover) {
-            manifest.push(
-                ['item', { 'id': COVER_PAGE_ID, 'href': COVER_PAGE_FILENAME, 'media-type': COVER_PAGE_MEDIA_TYPE }]
-            );
-        }
-        let counter = 1;
-        const walker = new FileSistemWalker(this.contentDir);
-        forEach(walker.walk(), ([dirPath, , fileNames]) => {
-            forEach(fileNames, (fileName) => {
-                const id = `id-${FORMATTER.format(counter++)}`;
-                const href = join(dirPath, fileName).substring(this.contentDir.length + 1);
-                this.fileName2id.set(href, id);
-                manifest.push(['item', { id, href, 'media-type': EPUBCreator.getMediaTypeFromFilename(fileName) }]);
-            });
-        });
-        return manifest;
-    }
-
     buildSpine () {
         const spine = ['spine', { 'toc': TOC_ID }];
         if (this.cover) {
@@ -298,55 +227,67 @@ class EPUBCreator {
         return spine;
     }
 
-    buildTOC () {
-        const navMapBuilder = new NavMapBuilder(this);
+    buildTOC (navMapBuilder) {
+        navMapBuilder = navMapBuilder || new NavMapBuilder(this);
         navMapBuilder.build(this.toc);
         return [
-            'ncx',
-            { 'xmlns': 'http://www.daisy.org/z3986/2005/ncx/', 'version': '2005-1' },
+            DOCUMENT,
+            XML_DECLARATION,
+            NCX_DOCTYPE,
             [
-                'head',
-                ['meta', { 'name': 'dtb:uid', 'content': this.getFromMetadata('dc:identifier') }],
-                ['meta', { 'name': 'dtb:depth', 'content': `${navMapBuilder.maxDepth}` }],
-                ['meta', { 'name': 'dtb:totalPageCount', 'content': '0' }],
-                ['meta', { 'name': 'dtb:maxPageNumber', 'content': '0' }]
-            ],
-            ['docTitle', ['text', this.getFromMetadata('dc:title')]],
-            navMapBuilder.result
+                'ncx',
+                { 'xmlns': 'http://www.daisy.org/z3986/2005/ncx/', 'version': '2005-1' },
+                [
+                    'head',
+                    ['meta', { 'name': 'dtb:uid', 'content': this.getFromMetadata('dc:identifier') }],
+                    ['meta', { 'name': 'dtb:depth', 'content': `${navMapBuilder.maxDepth}` }],
+                    ['meta', { 'name': 'dtb:totalPageCount', 'content': '0' }],
+                    ['meta', { 'name': 'dtb:maxPageNumber', 'content': '0' }]
+                ],
+                ['docTitle', ['text', this.getFromMetadata('dc:title')]],
+                navMapBuilder.result
+            ]
         ];
     }
 
     buildCoverPage () {
         if (!EPUBCreator.getMediaTypeFromFilename(this.cover).startsWith('image/')) {
-            throw new Error(`Cover file ${this.cover} is not an image`);
+            throw new Error(`Cover file "${this.cover}" is not an image`);
         }
         return [
-            'html',
-            { xmlns: 'http://www.w3.org/1999/xhtml' },
+            DOCUMENT,
+            XML_DECLARATION,
+            HTML_DOCTYPE,
             [
-                'head',
-                ['title', this.getFromMetadata('dc:title')]
-            ],
-            [
-                'body',
+                'html',
+                { xmlns: 'http://www.w3.org/1999/xhtml' },
                 [
-                    'div',
-                    { style: 'text-align:center;height:100%;' },
+                    'head',
+                    ['title', this.getFromMetadata('dc:title')]
+                ],
+                [
+                    'body',
                     [
-                        'img',
-                        {
-                            alt: `Cover for "${this.getFromMetadata('dc:title')}"`,
-                            src: this.cover,
-                            style: 'max-width:100%;height:100%;'
-                        }
+                        'div',
+                        { style: 'text-align:center;height:100%;' },
+                        [
+                            'img',
+                            {
+                                alt: `Cover for "${this.getFromMetadata('dc:title')}"`,
+                                src: this.cover,
+                                style: 'max-width:100%;height:100%;'
+                            }
+                        ]
                     ]
                 ]
             ]
         ];
     }
 
-    buildZip (container, content, toc, coverPage) {
-        const zip = new JSZip();
+    async buildZip (container, content, toc, coverPage, walk, zip, readFile) {
+        walk = walk || walkAsync;
+        zip = zip || new JSZip();
+        readFile = readFile || readFilePromise;
         zip.file(MIMETYPE_FILENAME, EPUB_MIMETYPE, { compression: 'STORE' });
         zip.file(CONTAINER_FILENAME, container);
         zip.file(join(CONTENT_DIR, CONTENT_FILENAME), content);
@@ -354,36 +295,30 @@ class EPUBCreator {
         if (coverPage) {
             zip.file(join(CONTENT_DIR, COVER_PAGE_FILENAME), coverPage);
         }
-        const walker = new FileSistemWalker(this.contentDir);
-        forEach(walker.walk(), ([dirPath, , fileNames]) => {
-            forEach(fileNames, (fileName) => {
+        for (const promise of walk(this.contentDir)) {
+            const [dirPath, , fileNames] = await promise;
+            await Promise.each(fileNames, async (fileName) => {
                 const filePath = join(dirPath, fileName);
                 const archivePath = join(CONTENT_DIR, filePath.substring(this.contentDir.length + 1));
-                zip.file(archivePath, readFileSync(filePath));
+                zip.file(archivePath, await readFile(filePath));
             });
-        });
+        }
         return zip;
     }
 
-    saveZip (zip, fileName) {
-        return new Promise((resolve, reject) => {
-            zip
-                .generateNodeStream({ type: 'nodebuffer', streamFiles: true, compression: 'DEFLATE' })
-                .pipe(createWriteStream(fileName))
-                .on('finish', resolve)
-                .on('error', reject);
-        });
+    async saveZip (zip, fileName, mockWriteFilePromise) {
+        const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+        return (mockWriteFilePromise || writeFilePromise)(fileName, buffer);
     }
 
-    build (fileName) {
-        const serializer = new JSMLSerializer({ appendDeclaration: true });
+    async create (fileName) {
+        const manifest = await this.buildManifest();
+        const serializer = new JSMLSerializer({ spacesPerLevel: 4 });
         const container = serializer.serialize(this.buildContainer());
-        const content = serializer.serialize(this.buildContent());
-        serializer.docType = TOC_DOCTYPE;
+        const content = serializer.serialize(this.buildContent(manifest));
         const toc = serializer.serialize(this.buildTOC());
-        serializer.docType = XHTML_DOCTYPE;
         const coverPage = this.cover ? serializer.serialize(this.buildCoverPage()) : undefined;
-        const zip = this.buildZip(container, content, toc, coverPage);
+        const zip = await this.buildZip(container, content, toc, coverPage);
         return this.saveZip(zip, fileName);
     }
 
