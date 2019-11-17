@@ -38,7 +38,7 @@ describe('NavMapBuilder', () => {
                 sut.build(toc);
                 fail();
             } catch (error) {
-                expect(error.message).toBe('Invalid TOC item [ {} ]: "label" is required');
+                expect(error.message).toBe('Invalid TOC item info {}: "label" is required');
             }
         });
         it('should throw on files not found', () => {

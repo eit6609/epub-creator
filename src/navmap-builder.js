@@ -1,7 +1,7 @@
 'use strict';
 
 const
-    { forEach, isArray, isUndefined } = require('lodash'),
+    { forEach, isArray } = require('lodash'),
     { inspect } = require('util'),
     Joi = require('@hapi/joi');
 
@@ -70,7 +70,7 @@ class NavMapBuilder {
             const [info, ...children] = item;
             const { error } = infoSchema.validate(info);
             if (error) {
-                error.message = `Invalid TOC item ${inspect(item)}: ${error.message}`;
+                error.message = `Invalid TOC item info ${inspect(info)}: ${error.message}`;
                 throw error;
             }
             this.epubBuilder.getFileId(stripFragment(info.href));
