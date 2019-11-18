@@ -72,8 +72,10 @@ describe('EPUBCreator', () => {
             const mimeType = await readMimeType(fileName);
             expect(mimeType).toBe('application/epub+zip');
             const zip = await loadZip(fileName);
+            await compareEntryWithFile(zip, 'META-INF/container.xml', 'spec/fixtures/container.xml');
             await compareEntryWithFile(zip, 'OEBPS/content.opf', 'spec/fixtures/content.opf');
             await compareEntryWithFile(zip, 'OEBPS/toc.ncx', 'spec/fixtures/toc.ncx');
+            await compareEntryWithFile(zip, 'OEBPS/cover-page.html', 'spec/fixtures/cover-page.html');
             for (const promise of walkAsync('spec/fixtures/content')) {
                 const [dirPath, , fileNames] = await promise;
                 await Promise.each(fileNames, async (fileName) => {
