@@ -22,8 +22,8 @@ async function loadZip (fileName) {
 }
 
 async function readMimeType (fileName) {
-    const position = 38;
-    const bufSize = 20;
+    const position = 30;
+    const bufSize = 28;
     const buffer = Buffer.alloc(bufSize);
     const fd = await openPromise(fileName, 'r');
     await readPromise(fd, buffer, 0, bufSize, position);
@@ -70,7 +70,7 @@ describe('EPUBCreator', () => {
             const sut = new EPUBCreator(options);
             await sut.create(fileName);
             const mimeType = await readMimeType(fileName);
-            expect(mimeType).toBe('application/epub+zip');
+            expect(mimeType).toBe('mimetypeapplication/epub+zip');
             const zip = await loadZip(fileName);
             await compareEntryWithFile(zip, 'META-INF/container.xml', 'spec/fixtures/container.xml');
             await compareEntryWithFile(zip, 'OEBPS/content.opf', 'spec/fixtures/content.opf');
