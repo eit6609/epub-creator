@@ -1,9 +1,9 @@
 # ePUB Creator
 
-ePUB Creator lets you create an ePUB 2.0 ebook from a directory with the content.
+ePUB Creator lets you create an ePUB 2.0 ebook from a directory.
 
-There are many ePUB libraries out there, but this one, as far as I know, is the only one that accepts a directory with
-the whole content of the ebook (XHTML pages, images, stylesheets, etc.) and, with come configuration, zips it up to an ePUB.
+It accepts a directory with the whole content of the ebook (XHTML pages, images, stylesheets, etc.) and, with some
+configuration, zips it up to an ePUB.
 
 This lets you create and test your content with a local browser and, only after it works and it looks like you want,
 proceed to create the ePUB. And, at least for me, this is the right way to do it.
@@ -90,7 +90,7 @@ If you don't provide a value for them, they will get these default values:
 * a generated [UUID v4](https://en.wikipedia.org/wiki/Universally_unique_identifier#Version_4_(random))
 * `'en'`
 
-An optional metadata element, `dc:date`, is also provided a default value, the current date.
+An optional metadata element, `dc:date`, is also provided with a default value, the current date.
 
 You can provide the most common metadata elements using a shortcut: the `simpleMetadata` option.
 
@@ -106,7 +106,7 @@ The value can be a full path or a relative path.
 
 All the file names that you may use in the options are relative to this directory.
 
-All the files and subdirectories of the directory will be included in the ePUB, and a [manifest](http://idpf.org/epub/20/spec/OPF_2.0.1_draft.htm#Section2.3) will be genefated that lists all of them.
+All the files and subdirectories of the directory will be included in the ePUB, and a [manifest](http://idpf.org/epub/20/spec/OPF_2.0.1_draft.htm#Section2.3) will be generated that lists all of them.
 
 ### `spine`, array, required
 
@@ -189,11 +189,13 @@ The resulting `metadata` element of the `content.opf` file will be something lik
 </metadata>
 ```
 
-You can see that the elements `dc:date` and `dc:identifier` have been provided default values as described above.
+You can see that the elements `dc:date` and `dc:identifier` have been provided with default values as described above.
 
 ### `metadata`, array, optional
 
-If you need full control of the metadata you can use this property. What you provide is an array of XML elements, in [JSML](https://github.com/eit6609/jsml) format, that will be merged with the `simpleMetadata` and will become the children of the `metadata` element of the `content.opf` file.
+If you need full control over the metadata you can use this property. What you provide is an array of XML elements, in
+[JSML](https://github.com/eit6609/jsml) format, that will be merged with the `simpleMetadata` and will become the
+children of the `metadata` element of the `content.opf` file.
 
 #### Example
 
@@ -221,4 +223,5 @@ The resulting `metadata` element will be something like:
 </metadata>
 ```
 
-You can see that the element `dc:date` has been provided a default value as described above and that the `metadata` elements have been merged with the `simpleMetadata` generated elements.
+You can see that the element `dc:date` has been provided with a default value as described above and that the `metadata`
+elements have been merged with the `simpleMetadata` generated elements.
