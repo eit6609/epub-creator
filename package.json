@@ -1,7 +1,7 @@
 {
   "name": "@eit6609/epub-creator",
-  "version": "1.0.0",
-  "description": "A creator of EPUB 2.0 ebooks",
+  "version": "1.0.1",
+  "description": "A creator of ePUB 2.0 ebooks",
   "keywords": [
     "epub",
     "ebook"
