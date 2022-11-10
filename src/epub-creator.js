@@ -176,6 +176,7 @@ class EPUBCreator {
             manifest.push(
                 ['item', { 'id': COVER_PAGE_ID, 'href': COVER_PAGE_FILENAME, 'media-type': COVER_PAGE_MEDIA_TYPE }]
             );
+            this.fileName2id.set(COVER_PAGE_FILENAME, COVER_PAGE_ID);
         }
         let counter = 1;
         walk = walk || walkAsync;
