@@ -157,10 +157,10 @@ A `dc:identifier` element with `opf:scheme="UUID"` is always generated and refer
 
 ```js
 const simpleMetadata = {
-	language: 'it',
-	title: 'Un libro',
+    language: 'it',
+    title: 'Un libro',
     isbn: '1234567890',
-	author: 'Un autore',
+    author: 'Un autore',
     description: 'Blurb!',
     tags: ['Adventure', 'Fiction']
 };
@@ -203,8 +203,8 @@ const metadata = [
     ['dc:description', 'A good book']
 ];
 const simpleMetadata = {
-	title: 'A Book',
-	author: 'An Author',
+    title: 'A Book',
+    author: 'An Author',
     description: 'A very good book'
 };
 ```
