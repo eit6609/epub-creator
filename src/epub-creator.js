@@ -53,8 +53,11 @@ const optionsSchema = Joi.object({
     metadata: Joi.array(),
     simpleMetadata: Joi.object({
         title: Joi.string(),
+        description: Joi.string(),
+        tags: Joi.array().items(Joi.string()),
         author: Joi.string(),
-        language: Joi.string()
+        language: Joi.string(),
+        isbn: Joi.string(),
     }),
     spine: Joi.array().items(Joi.string()).unique().required(),
     toc: Joi.array().required(),
@@ -116,8 +119,18 @@ class EPUBCreator {
     prepareMetadata (metadata = [], simpleMetadata = {}) {
         validateJSML(['metadata', ...metadata]);
         const extraElements = [];
-        if (isUndefined(getElementTextByName('dc:identifier', metadata))) {
-            extraElements.push(['dc:identifier', { 'id': 'BookId', 'opf:scheme': 'uuid' }, `urn:uuid:${uuid.v4()}`]);
+        const metadataUUID = metadata.find(([tag, attrs]) => tag === 'dc:identifier' && attrs['opf:scheme'] === 'UUID');
+        if (isUndefined(metadataUUID)) {
+            extraElements.push(['dc:identifier', { 'id': 'BookId', 'opf:scheme': 'UUID' }, `urn:uuid:${uuid.v4()}`]);
+        } else {
+            metadataUUID[1].id = 'BookId';
+        }
+        const metadataISBN = metadata.find(([tag, attrs]) => tag === 'dc:identifier' && attrs['opf:scheme'] === 'ISBN');
+        if (isUndefined(metadataISBN)) {
+            const { isbn } = simpleMetadata;
+            if (!isUndefined(isbn)) {
+                extraElements.push(['dc:identifier', { 'opf:scheme': 'ISBN' }, isbn]);
+            }
         }
         if (isUndefined(getElementTextByName('dc:date', metadata))) {
             extraElements.push(['dc:date', new Date().toJSON()]);
@@ -126,12 +139,25 @@ class EPUBCreator {
             const language = simpleMetadata.language || DEFAULT_LANGUAGE;
             extraElements.push(['dc:language', language]);
         }
+        if (isUndefined(getElementTextByName('dc:creator', metadata)) && !isUndefined(simpleMetadata.author)) {
+            extraElements.push(['dc:creator', { 'opf:role': 'aut' }, simpleMetadata.author]);
+        }
         if (isUndefined(getElementTextByName('dc:title', metadata))) {
             const title = simpleMetadata.title || DEFAULT_TITLE;
             extraElements.push(['dc:title', title]);
         }
-        if (isUndefined(getElementTextByName('dc:creator', metadata)) && !isUndefined(simpleMetadata.author)) {
-            extraElements.push(['dc:creator', { 'opf:role': 'aut' }, simpleMetadata.author]);
+        if (isUndefined(getElementTextByName('dc:description', metadata))) {
+            const { description } = simpleMetadata;
+            if (description) {
+                extraElements.push(['dc:description', description]);
+            }
+        }
+        if (isUndefined(getElementTextByName('dc:subject', metadata))) {
+            const { tags } = simpleMetadata;
+            if (!isUndefined(tags)) {
+                const subjects = tags.map((tag) => ['dc:subject', tag]);
+                extraElements.push(...subjects);
+            }
         }
         metadata = metadata.concat(extraElements);
         return metadata;
@@ -139,6 +165,11 @@ class EPUBCreator {
 
     getFromMetadata (elementName) {
         return getElementTextByName(elementName, this.metadata);
+    }
+
+    getUniqueIdFromMetadata () {
+        const element = this.metadata.find(([tag, attrs]) => tag === 'dc:identifier' && attrs['opf:scheme'] === 'UUID');
+        return getChildren(element)[0];
     }
 
     getFileId (name) {
@@ -241,7 +272,7 @@ class EPUBCreator {
                 { 'xmlns': 'http://www.daisy.org/z3986/2005/ncx/', 'version': '2005-1' },
                 [
                     'head',
-                    ['meta', { 'name': 'dtb:uid', 'content': this.getFromMetadata('dc:identifier') }],
+                    ['meta', { 'name': 'dtb:uid', 'content': this.getUniqueIdFromMetadata() }],
                     ['meta', { 'name': 'dtb:depth', 'content': `${navMapBuilder.maxDepth}` }],
                     ['meta', { 'name': 'dtb:totalPageCount', 'content': '0' }],
                     ['meta', { 'name': 'dtb:maxPageNumber', 'content': '0' }]
