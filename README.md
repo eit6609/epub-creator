@@ -76,28 +76,6 @@ async create(fileName: string): empty promise
 
 Creates the ePUB with the given file name.
 
-<!--
-## Metadata
-
-According to the [specs](http://idpf.org/epub/20/spec/OPF_2.0.1_draft.htm#Section2.2), three metadata elements are required:
-
-* `dc:title`
-* `dc:identifier`
-* `dc:language`
-
-If you don't provide a value for them, they will get these default values:
-
-* `'Untitled'`
-* a generated [UUID v4](https://en.wikipedia.org/wiki/Universally_unique_identifier#Version_4_(random))
-* `'en'`
-
-An optional metadata element, `dc:date`, is also provided with a default value, the current date.
-
-You can provide the most common metadata elements using a shortcut: the `simpleMetadata` option.
-
-You can also provide the full metadata, if you need more control: these elements are merged with the `simpleMetadata` generated elements but have precedence over them.
--->
-
 ## Options Reference
 
 ### `contentDir`, string, required
