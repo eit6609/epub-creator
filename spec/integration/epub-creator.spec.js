@@ -63,7 +63,7 @@ describe('EPUBCreator', () => {
                 },
                 metadata: [
                     ['dc:date', '2000-01-01T00:00:00.000Z'],
-                    ['dc:identifier', { id: 'BookId', 'opf:scheme': 'uuid' }, 'test-identifier']
+                    ['dc:identifier', { id: 'BookId', 'opf:scheme': 'UUID' }, 'test-identifier']
                 ]
             };
             const fileName = 'spec/fixtures/temp/result.epub';

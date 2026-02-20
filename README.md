@@ -76,6 +76,7 @@ async create(fileName: string): empty promise
 
 Creates the ePUB with the given file name.
 
+<!--
 ## Metadata
 
 According to the [specs](http://idpf.org/epub/20/spec/OPF_2.0.1_draft.htm#Section2.2), three metadata elements are required:
@@ -95,6 +96,7 @@ An optional metadata element, `dc:date`, is also provided with a default value, 
 You can provide the most common metadata elements using a shortcut: the `simpleMetadata` option.
 
 You can also provide the full metadata, if you need more control: these elements are merged with the `simpleMetadata` generated elements but have precedence over them.
+-->
 
 ## Options Reference
 
@@ -163,17 +165,26 @@ Use this object to easily configure the most common metadata.
 
 Its properties are:
 
-* `title`, string, optional, generates the `dc:title` element
+* `language`, string, optional, default `'en'`, generates the required `dc:language` element
+* `title`, string, optional, default `'Untitled'`, generates the required `dc:title` element
+* `isbn`, string, optional, generates a `dc:identifier` element with `opf:scheme="ISBN"` 
 * `author`, string, optional, generates the `dc:creator` element
-* `language`, string, optional, generates the `dc:language` element
+* `description`, string, optional, generates the `dc:description` element
+* `tags`, array of string, optional, generates a `dc:subject` element for every item of `tags`
+
+A `dc:identifier` element with `opf:scheme="UUID"` is always generated and referenced by the
+`unique-identifier` attribute of the `package` element, the root of the `content.opf` file.
 
 #### Example
 
 ```js
 const simpleMetadata = {
+	language: 'it',
 	title: 'Un libro',
+    isbn: '1234567890',
 	author: 'Un autore',
-	language: 'it'
+    description: 'Blurb!',
+    tags: ['Adventure', 'Fiction']
 };
 ```
 
@@ -181,32 +192,42 @@ The resulting `metadata` element of the `content.opf` file will be something lik
 
 ```xml
 <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+    <dc:identifier id="BookId" opf:scheme="UUID">d5f9547e-b630-4c01-86a1-5cd11b226776</dc:identifier>
+    <dc:identifier opf:scheme="ISBN">1234567890</dc:identifier>
     <dc:date>2019-11-19T11:22:50.448Z</dc:date>
-    <dc:identifier id="BookId" opf:scheme="uuid">d5f9547e-b630-4c01-86a1-5cd11b226776</dc:identifier>
     <dc:language>it</dc:language>
-    <dc:title>Un libro</dc:title>
     <dc:creator opf:role="aut">Un autore</dc:creator>
+    <dc:title>Un libro</dc:title>
+    <dc:description>Blurb!</dc:description>
+    <dc:subject>Adventure</dc:subject>
+    <dc:subject>Fiction</dc:subject>
 </metadata>
 ```
 
-You can see that the elements `dc:date` and `dc:identifier` have been provided with default values as described above.
+You can see that the element `dc:date` has been provided with a default value as described above.
 
 ### `metadata`, array, optional
 
 If you need full control over the metadata you can use this property. What you provide is an array of XML elements, in
-[JSML](https://github.com/eit6609/jsml) format, that will be merged with the `simpleMetadata` and will become the
+[JSML](https://github.com/eit6609/jsml) format, that will be merged with the `simpleMetadata` and will provide the
 children of the `metadata` element of the `content.opf` file.
+
+The `metadata` elements have priority over the `simpleMetadata` values.
+
+More information about the ePUB 2.0 metadata [here](http://idpf.org/epub/20/spec/OPF_2.0.1_draft.htm#Section2.2).
 
 #### Example
 
 ```js
 const metadata = [
-    ['dc:identifier', { id: 'BookId', 'opf:scheme': 'ISBN' }, 'XXXXXXXXXX'],
-    ['dc:contributor', { 'opf:role': 'edt' }, 'An Editor']
+    ['dc:contributor', { 'opf:role': 'edt' }, 'An Editor'],
+    ['dc:date', new Date('2000-01-01')],
+    ['dc:description', 'A good book']
 ];
 const simpleMetadata = {
 	title: 'A Book',
-	author: 'An Author'
+	author: 'An Author',
+    description: 'A very good book'
 };
 ```
 
@@ -214,14 +235,16 @@ The resulting `metadata` element will be something like:
 
 ```xml
 <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
-    <dc:date>2019-11-19T11:22:50.448Z</dc:date>
-    <dc:identifier id="BookId" opf:scheme="ISBN">XXXXXXXXXX</dc:identifier>
-    <dc:language>en</dc:language>
-    <dc:title>A Book</dc:title>
-    <dc:creator opf:role="aut">An Author</dc:creator>
     <dc:contributor opf:role="edt">An Editor</dc:creator>
+    <dc:date>2000-01-01T00:00:00.000Z</dc:date>
+    <dc:description>A good book</dc:description>
+    <dc:identifier id="BookId" opf:scheme="UUID">d5f9547e-b630-4c01-86a1-5cd11b226776</dc:identifier>
+    <dc:language>en</dc:language>
+    <dc:creator opf:role="aut">An Author</dc:creator>
+    <dc:title>A Book</dc:title>
 </metadata>
 ```
 
-You can see that the element `dc:date` has been provided with a default value as described above and that the `metadata`
-elements have been merged with the `simpleMetadata` generated elements.
+You can see that the element `dc:language` has been provided with a default value as
+described above and that the `metadata` elements have been merged with the `simpleMetadata` generated
+elements, giving `dc:description` priority over `description`.

@@ -101,7 +101,7 @@ describe('EPUBCreator', () => {
                 .toMatch(/^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
             expect(result[1][1]).toBeIso8601();
             expect(result).toEqual([
-                ['dc:identifier', { 'id': 'BookId', 'opf:scheme': 'uuid' }, result[0][2]],
+                ['dc:identifier', { 'id': 'BookId', 'opf:scheme': 'UUID' }, result[0][2]],
                 ['dc:date', result[1][1]],
                 ['dc:language', 'en'],
                 ['dc:title', 'Untitled']
@@ -113,39 +113,57 @@ describe('EPUBCreator', () => {
             const simpleMetadata = {
                 author: 'E. A. Poe',
                 title: 'The Purloined Letter',
-                language: 'en_US'
+                language: 'en_US',
+                description: '<p>A good tale.</p>',
+                tags: ['Fiction', 'Thriller'],
+                isbn: '1234567890'
             };
             const result = sut.prepareMetadata([], simpleMetadata);
             expect(result).toEqual([
-                ['dc:identifier', { 'id': 'BookId', 'opf:scheme': 'uuid' }, result[0][2]],
-                ['dc:date', result[1][1]],
+                ['dc:identifier', { 'id': 'BookId', 'opf:scheme': 'UUID' }, result[0][2]],
+                ['dc:identifier', { 'opf:scheme': 'ISBN' }, '1234567890'],
+                ['dc:date', result[2][1]],
                 ['dc:language', 'en_US'],
+                ['dc:creator', { 'opf:role': 'aut' }, 'E. A. Poe'],
                 ['dc:title', 'The Purloined Letter'],
-                ['dc:creator', { 'opf:role': 'aut' }, 'E. A. Poe']
+                ['dc:description', '<p>A good tale.</p>'],
+                ['dc:subject', 'Fiction'],
+                ['dc:subject', 'Thriller'],
             ]);
         });
         it('should not copy the simple metadata to the metadata if not needed', () => {
             const mockSchema = true;
             sut = new EPUBCreator({}, mockSchema);
             const metadata = [
-                ['dc:identifier', 'an-id'],
+                ['dc:identifier', { 'opf:scheme': 'UUID' }, 'an-uuid'],
+                ['dc:identifier', { 'opf:scheme': 'ISBN' }, 'an-isbn'],
                 ['dc:date', 'a-date'],
                 ['dc:language', 'a-language'],
                 ['dc:title', 'a-title'],
-                ['dc:creator', 'a-creator']
+                ['dc:creator', 'a-creator'],
+                ['dc:description', 'a-description'],
+                ['dc:subject', 'a-subject']
             ];
             const simpleMetadata = {
                 author: 'E. A. Poe',
                 title: 'The Purloined Letter',
-                language: 'en_US'
+                language: 'en_US',
+                description: '<p>A good tale.</p>',
+                tags: ['Fiction', 'Thriller'],
+                isbn: '1234567890'
             };
             const result = sut.prepareMetadata(metadata, simpleMetadata);
+            console.log(result);
             expect(result).toEqual([
-                ['dc:identifier', 'an-id'],
+                ['dc:identifier', { 'opf:scheme': 'UUID', id: 'BookId' }, 'an-uuid'],
+                ['dc:identifier', { 'opf:scheme': 'ISBN' }, 'an-isbn'],
                 ['dc:date', 'a-date'],
                 ['dc:language', 'a-language'],
                 ['dc:title', 'a-title'],
-                ['dc:creator', 'a-creator']
+                ['dc:creator', 'a-creator'],
+                ['dc:description', 'a-description'],
+                ['dc:subject', 'a-subject'],
+                // ['dc:identifier', { 'id': 'BookId', 'opf:scheme': 'UUID' }, result[7][2]]
             ]);
         });
         it('should throw if the metadata is not valid JSML', () => {
@@ -171,6 +189,14 @@ describe('EPUBCreator', () => {
             const mockSchema = true;
             sut = new EPUBCreator({}, mockSchema);
             expect(sut.getFromMetadata('dc:title')).toBe('Untitled');
+        });
+    });
+
+    describe('getUniqueIdFromMetadata()', () => {
+        it('should return the opf:identifier element with UUID opf:schema in the metadata', () => {
+            const mockSchema = true;
+            sut = new EPUBCreator({}, mockSchema);
+            expect(sut.getUniqueIdFromMetadata()).toStartWith('urn:uuid:');
         });
     });
 
@@ -357,10 +383,7 @@ describe('EPUBCreator', () => {
         it('should return the expected JSML using the results of the NavMapBuilder', () => {
             const mockSchema = true;
             sut = new EPUBCreator({}, mockSchema);
-            sut.metadata = [
-                ['dc:identifier', 'an-identifier'],
-                ['dc:title', 'Title'],
-            ];
+            console.log(sut.metadata);
             const navMapBuilder = {
                 build () {
                 },
@@ -376,12 +399,12 @@ describe('EPUBCreator', () => {
                     { 'xmlns': 'http://www.daisy.org/z3986/2005/ncx/', 'version': '2005-1' },
                     [
                         'head',
-                        ['meta', { 'name': 'dtb:uid', 'content': 'an-identifier' }],
+                        ['meta', { 'name': 'dtb:uid', 'content': sut.metadata[0][2] }],
                         ['meta', { 'name': 'dtb:depth', 'content': 'maxDepth' }],
                         ['meta', { 'name': 'dtb:totalPageCount', 'content': '0' }],
                         ['meta', { 'name': 'dtb:maxPageNumber', 'content': '0' }]
                     ],
-                    ['docTitle', ['text', 'Title']],
+                    ['docTitle', ['text', 'Untitled']],
                     'result'
                 ]
             ]);

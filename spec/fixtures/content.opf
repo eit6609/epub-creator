@@ -2,10 +2,10 @@
 <package version="2.0" xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId">
     <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
         <dc:date>2000-01-01T00:00:00.000Z</dc:date>
-        <dc:identifier id="BookId" opf:scheme="uuid">test-identifier</dc:identifier>
+        <dc:identifier id="BookId" opf:scheme="UUID">test-identifier</dc:identifier>
         <dc:language>en</dc:language>
-        <dc:title>Test ePUB</dc:title>
         <dc:creator opf:role="aut">epub-creator integration spec</dc:creator>
+        <dc:title>Test ePUB</dc:title>
         <meta name="cover" content="id-000002" />
     </metadata>
     <manifest>
