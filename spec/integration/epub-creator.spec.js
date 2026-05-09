@@ -40,8 +40,7 @@ async function compareEntryWithFile (zip, entryName, fileName) {
     }
 }
 
-const COMMON_OPTIONS = {
-    contentDir: 'spec/fixtures/content',
+const COMMON_OPTIONS_BASE = {
     spine: ['text/front.xhtml', 'text/001.xhtml', 'text/002.xhtml'],
     toc: [
         [{ label: 'Front Matter', href: 'text/front.xhtml' }],
@@ -58,6 +57,9 @@ const COMMON_OPTIONS = {
         ['dc:identifier', { id: 'BookId', 'opf:scheme': 'UUID' }, 'test-identifier']
     ]
 };
+
+const COMMON_OPTIONS = { contentDir: 'spec/fixtures/content', ...COMMON_OPTIONS_BASE };
+const COMMON_OPTIONS_V3 = { contentDir: 'spec/fixtures/content-html5', ...COMMON_OPTIONS_BASE };
 
 describe('EPUBCreator', () => {
 
@@ -87,11 +89,20 @@ describe('EPUBCreator', () => {
                 });
             }
         });
+        it('should throw if a content file has HTML5 DOCTYPE', async () => {
+            const sut = new EPUBCreator(COMMON_OPTIONS_V3);
+            try {
+                await sut.create(fileName);
+                fail('expected error');
+            } catch (error) {
+                expect(error.message).toMatch(/not valid for EPUB v2/);
+            }
+        });
     });
 
     describe('build() v3', () => {
         it('should create the expected epub', async () => {
-            const sut = new EPUBCreator(COMMON_OPTIONS);
+            const sut = new EPUBCreator(COMMON_OPTIONS_V3);
             await sut.create(fileName, '3');
             const mimeType = await readMimeType(fileName);
             expect(mimeType).toBe('mimetypeapplication/epub+zip');
@@ -101,13 +112,22 @@ describe('EPUBCreator', () => {
             await compareEntryWithFile(zip, 'OEBPS/toc.ncx', 'spec/fixtures/toc.ncx');
             await compareEntryWithFile(zip, 'OEBPS/nav.xhtml', 'spec/fixtures/nav.xhtml');
             await compareEntryWithFile(zip, 'OEBPS/cover-page.html', 'spec/fixtures/cover-page-v3.html');
-            for (const promise of walkAsync(COMMON_OPTIONS.contentDir)) {
+            for (const promise of walkAsync(COMMON_OPTIONS_V3.contentDir)) {
                 const [dirPath, , fileNames] = await promise;
                 await Promise.each(fileNames, async (fileName) => {
                     const filePath = join(dirPath, fileName);
-                    const archivePath = join('OEBPS', filePath.substring(COMMON_OPTIONS.contentDir.length + 1));
+                    const archivePath = join('OEBPS', filePath.substring(COMMON_OPTIONS_V3.contentDir.length + 1));
                     await compareEntryWithFile(zip, archivePath, filePath);
                 });
+            }
+        });
+        it('should throw if a content file has XHTML DOCTYPE', async () => {
+            const sut = new EPUBCreator(COMMON_OPTIONS);
+            try {
+                await sut.create(fileName, '3');
+                fail('expected error');
+            } catch (error) {
+                expect(error.message).toMatch(/must have HTML5 DOCTYPE/);
             }
         });
     });

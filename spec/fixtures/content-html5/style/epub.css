@@ -1,0 +1,166 @@
+/* PARAGRAPH STYLES */
+
+body {
+ 	font-family:Times New Roman, serif;
+	font-style:normal;
+	font-weight:normal;
+}
+
+h1 {
+	text-align:center;
+}
+
+h2 {
+	text-align:center;
+}
+
+h3 {
+	text-align:center;
+}
+
+h4 {
+	text-align:center;
+}
+
+h5 {
+	text-align:center;
+}
+
+h6 {
+	text-align:center;
+}
+
+blockquote {
+	margin-left:3em;
+}
+blockquote p {
+	font-size:10pt;
+}
+
+li {
+	font-size:12pt;
+	text-align:justify;
+	margin:0;
+}
+
+p {
+	font-size:12pt;
+	text-indent:1em;
+	text-align:justify;
+	margin:0;
+}
+p:first-child {
+	text-indent:0;
+}
+p.bookTitle {
+	font-size:16pt;
+	text-align:center;
+	text-indent:0;
+}
+p.bookSubtitle {
+	font-size:14pt;
+	font-style:italic;
+	text-align:center;
+	text-indent:0;
+}
+p.chapterTitle {
+	font-size:14pt;
+	text-align:center;
+	text-indent:0;
+}
+p.firstOfChapter {
+	text-indent:0;
+}
+p.firstOfChapter:first-letter {
+	float:left;
+	font-size:55pt;
+	margin-top:-12pt;
+	margin-bottom:-18pt;
+}
+p.title {
+	text-indent:0;
+	margin-bottom:10pt;
+}
+p.first {
+	text-indent:0;
+}
+p.epigraph {
+	text-indent:0;
+	text-align:center;
+	font-variant:small-caps;
+}
+p.song {
+	text-indent:0;
+	text-align:center;
+	font-style:italic;
+}
+
+div {
+	margin-top:10pt;
+	margin-bottom:10pt
+}
+
+div.dedication p {
+	text-indent:0;
+	text-align:right;
+	font-style:italic;
+}
+div.dedication em {
+	font-style:normal;
+}
+
+div.song p {
+	text-indent:0;
+	text-align:center;
+	font-style:italic;
+}
+div.song p.title {
+	font-style:normal;
+	margin-bottom:10pt
+}
+div.song em {
+	font-style:normal;
+}
+
+div.dialog p {
+	font-style:italic;
+}
+div.dialog p.title {
+	text-indent:0;
+	font-style:normal;
+	text-align:center;
+}
+div.dialog em {
+	font-style:normal;
+}
+
+div.tale {
+	margin-left:3em;
+	margin-right:3em;
+}
+div.tale p {
+	font-style:italic;
+}
+div.tale p.title {
+	text-indent:0;
+	font-style:normal;
+	text-align:center;
+}
+div.tale em {
+	font-style:normal;
+}
+
+div.epigraph p {
+	text-indent:0;
+	text-align:center;
+	font-variant:small-caps;
+}
+
+/*CHARACTER STYLES */
+
+.me {
+	font-style:normal;
+}
+.sc {
+	font-variant:small-caps;
+}

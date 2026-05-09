@@ -624,6 +624,7 @@ describe('EPUBCreator', () => {
             '[when there is no cover]', async () => {
             const mockSchema = true;
             const sut = new EPUBCreator({}, mockSchema);
+            spyOn(sut, 'validateContentFiles').and.returnValue(Promise.resolve());
             spyOn(sut, 'buildManifest').and.returnValue('manifest');
             spyOn(sut, 'buildContainer').and.returnValue(['container']);
             spyOn(sut, 'buildContent').and.returnValue(['content']);
@@ -643,6 +644,7 @@ describe('EPUBCreator', () => {
             '[when there is a cover]', async () => {
             const mockSchema = true;
             const sut = new EPUBCreator({ cover: 'cover.jpg' }, mockSchema);
+            spyOn(sut, 'validateContentFiles').and.returnValue(Promise.resolve());
             spyOn(sut, 'buildManifest').and.returnValue('manifest');
             spyOn(sut, 'buildContainer').and.returnValue(['container']);
             spyOn(sut, 'buildContent').and.returnValue(['content']);
@@ -663,6 +665,7 @@ describe('EPUBCreator', () => {
         it('should call the v3 methods when version is "3" [no cover]', async () => {
             const mockSchema = true;
             const sut = new EPUBCreator({}, mockSchema);
+            spyOn(sut, 'validateContentFiles').and.returnValue(Promise.resolve());
             spyOn(sut, 'buildManifestV3').and.returnValue('manifest');
             spyOn(sut, 'buildContainer').and.returnValue(['container']);
             spyOn(sut, 'buildContentV3').and.returnValue(['content']);
@@ -686,6 +689,7 @@ describe('EPUBCreator', () => {
         it('should call the v3 methods when version is "3" [with cover]', async () => {
             const mockSchema = true;
             const sut = new EPUBCreator({ cover: 'cover.jpg' }, mockSchema);
+            spyOn(sut, 'validateContentFiles').and.returnValue(Promise.resolve());
             spyOn(sut, 'buildManifestV3').and.returnValue('manifest');
             spyOn(sut, 'buildContainer').and.returnValue(['container']);
             spyOn(sut, 'buildContentV3').and.returnValue(['content']);
@@ -873,6 +877,81 @@ describe('EPUBCreator', () => {
             await sut.buildZip('container', 'content', 'toc', undefined, walk, zip, async () => '');
             const navCall = zip.file.calls.all().find((c) => c.args[0] === 'OEBPS/nav.xhtml');
             expect(navCall).toBeUndefined();
+        });
+    });
+
+    describe('static checkContentFile()', () => {
+        const HTML5 = '<!DOCTYPE html>\n<html>...</html>';
+        const HTML5_UPPERCASE = '<!DOCTYPE HTML>\n<html>...</html>';
+        const XHTML = '<?xml version="1.0"?>\n<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "...">\n<html>...</html>';
+        const NO_DOCTYPE = '<html>...</html>';
+
+        describe('v2', () => {
+            it('should not throw for an XHTML file', () => {
+                expect(() => EPUBCreator.checkContentFile(XHTML, 'ch.xhtml', '2')).not.toThrow();
+            });
+            it('should not throw for a file with no DOCTYPE', () => {
+                expect(() => EPUBCreator.checkContentFile(NO_DOCTYPE, 'ch.xhtml', '2')).not.toThrow();
+            });
+            it('should throw for a file with HTML5 DOCTYPE', () => {
+                expect(() => EPUBCreator.checkContentFile(HTML5, 'ch.html', '2'))
+                    .toThrowError(/not valid for EPUB v2/);
+            });
+            it('should throw for HTML5 DOCTYPE regardless of case', () => {
+                expect(() => EPUBCreator.checkContentFile(HTML5_UPPERCASE, 'ch.html', '2'))
+                    .toThrowError(/not valid for EPUB v2/);
+            });
+        });
+
+        describe('v3', () => {
+            it('should not throw for a file with HTML5 DOCTYPE', () => {
+                expect(() => EPUBCreator.checkContentFile(HTML5, 'ch.html', '3')).not.toThrow();
+            });
+            it('should not throw for HTML5 DOCTYPE regardless of case', () => {
+                expect(() => EPUBCreator.checkContentFile(HTML5_UPPERCASE, 'ch.html', '3')).not.toThrow();
+            });
+            it('should throw for an XHTML file', () => {
+                expect(() => EPUBCreator.checkContentFile(XHTML, 'ch.xhtml', '3'))
+                    .toThrowError(/must have HTML5 DOCTYPE/);
+            });
+            it('should throw for a file with no DOCTYPE', () => {
+                expect(() => EPUBCreator.checkContentFile(NO_DOCTYPE, 'ch.xhtml', '3'))
+                    .toThrowError(/must have HTML5 DOCTYPE/);
+            });
+        });
+    });
+
+    describe('validateContentFiles()', () => {
+        const walkerResult = [
+            ['root', ['sub'], ['page.html', 'image.png']],
+            ['root/sub', [], ['chapter.xhtml', 'data.xml']]
+        ];
+        function *walk () {
+            for (let i = 0; i < walkerResult.length; i++) {
+                yield Promise.resolve(walkerResult[i]);
+            }
+        }
+        it('should call checkContentFile only for html/xhtml files', async () => {
+            const mockSchema = true;
+            sut = new EPUBCreator({ contentDir: 'root' }, mockSchema);
+            spyOn(EPUBCreator, 'checkContentFile');
+            async function readFile () { return Buffer.from('content'); }
+            await sut.validateContentFiles('2', walk, readFile);
+            expect(EPUBCreator.checkContentFile).toHaveBeenCalledTimes(2);
+            expect(EPUBCreator.checkContentFile).toHaveBeenCalledWith('content', 'page.html', '2');
+            expect(EPUBCreator.checkContentFile).toHaveBeenCalledWith('content', 'chapter.xhtml', '2');
+        });
+        it('should throw if checkContentFile throws', async () => {
+            const mockSchema = true;
+            sut = new EPUBCreator({ contentDir: 'root' }, mockSchema);
+            spyOn(EPUBCreator, 'checkContentFile').and.throwError('bad file');
+            async function readFile () { return Buffer.from('content'); }
+            try {
+                await sut.validateContentFiles('2', walk, readFile);
+                fail('expected error');
+            } catch (error) {
+                expect(error.message).toBe('bad file');
+            }
         });
     });
 

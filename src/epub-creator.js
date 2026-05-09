@@ -51,6 +51,10 @@ const
 const
     METADATA_ATTRIBUTES_V3 = { 'xmlns:dc': 'http://purl.org/dc/elements/1.1/' };
 
+const HTML5_DOCTYPE_RE = /<!DOCTYPE\s+html\s*>/i;
+
+const CONTENT_EXTENSIONS = new Set(['html', 'xhtml']);
+
 const EPUB2_MEDIA_TYPES = new Set([
     'application/xhtml+xml',
     'application/x-dtbncx+xml',
@@ -525,7 +529,33 @@ class EPUBCreator {
         return (mockWriteFilePromise || writeFilePromise)(fileName, buffer);
     }
 
+    static checkContentFile (content, fileName, version) {
+        const isHtml5 = HTML5_DOCTYPE_RE.test(content);
+        if (version === '3' && !isHtml5) {
+            throw new Error(`File "${fileName}" must have HTML5 DOCTYPE (<!DOCTYPE html>) for EPUB v3`);
+        }
+        if (version !== '3' && isHtml5) {
+            throw new Error(`File "${fileName}" has HTML5 DOCTYPE which is not valid for EPUB v2; use XHTML`);
+        }
+    }
+
+    async validateContentFiles (version, walk, readFile) {
+        walk = walk || walkAsync;
+        readFile = readFile || readFilePromise;
+        for (const promise of walk(this.contentDir)) {
+            const [dirPath, , fileNames] = await promise;
+            for (const fileName of fileNames) {
+                const ext = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
+                if (CONTENT_EXTENSIONS.has(ext)) {
+                    const content = (await readFile(join(dirPath, fileName))).toString();
+                    EPUBCreator.checkContentFile(content, fileName, version);
+                }
+            }
+        }
+    }
+
     async create (fileName, version = '2') {
+        await this.validateContentFiles(version);
         const serializer = new JSMLSerializer({ spacesPerLevel: 4 });
         const container = serializer.serialize(this.buildContainer());
         if (version === '3') {
