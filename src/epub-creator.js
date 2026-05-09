@@ -52,6 +52,7 @@ const
     METADATA_ATTRIBUTES_V3 = { 'xmlns:dc': 'http://purl.org/dc/elements/1.1/' };
 
 const HTML5_DOCTYPE_RE = /<!DOCTYPE\s+html\s*>/i;
+const XHTML_RE = /<\?xml\b|<!DOCTYPE\s+html\s+PUBLIC/i;
 
 const CONTENT_EXTENSIONS = new Set(['html', 'xhtml']);
 
@@ -530,12 +531,14 @@ class EPUBCreator {
     }
 
     static checkContentFile (content, fileName, version) {
-        const isHtml5 = HTML5_DOCTYPE_RE.test(content);
-        if (version === '3' && !isHtml5) {
-            throw new Error(`File "${fileName}" must have HTML5 DOCTYPE (<!DOCTYPE html>) for EPUB v3`);
-        }
-        if (version !== '3' && isHtml5) {
-            throw new Error(`File "${fileName}" has HTML5 DOCTYPE which is not valid for EPUB v2; use XHTML`);
+        if (version === '3') {
+            if (!HTML5_DOCTYPE_RE.test(content)) {
+                throw new Error(`File "${fileName}" must have HTML5 DOCTYPE (<!DOCTYPE html>) for EPUB v3`);
+            }
+        } else {
+            if (!XHTML_RE.test(content)) {
+                throw new Error(`File "${fileName}" must be XHTML for EPUB v2 (XML declaration or XHTML DOCTYPE required)`);
+            }
         }
     }
 

@@ -883,23 +883,32 @@ describe('EPUBCreator', () => {
     describe('static checkContentFile()', () => {
         const HTML5 = '<!DOCTYPE html>\n<html>...</html>';
         const HTML5_UPPERCASE = '<!DOCTYPE HTML>\n<html>...</html>';
-        const XHTML = '<?xml version="1.0"?>\n<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "...">\n<html>...</html>';
-        const NO_DOCTYPE = '<html>...</html>';
+        const XHTML_WITH_XML_DECL = '<?xml version="1.0"?>\n<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "...">\n<html>...</html>';
+        const XHTML_XML_DECL_ONLY = '<?xml version="1.0"?>\n<html xmlns="http://www.w3.org/1999/xhtml">...</html>';
+        const XHTML_PUBLIC_DOCTYPE_ONLY = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "...">\n<html>...</html>';
+        const NO_XHTML_SIGNATURE = '<html xmlns="http://www.w3.org/1999/xhtml">...</html>';
 
         describe('v2', () => {
-            it('should not throw for an XHTML file', () => {
-                expect(() => EPUBCreator.checkContentFile(XHTML, 'ch.xhtml', '2')).not.toThrow();
+            it('should not throw for XHTML with XML declaration and DOCTYPE', () => {
+                expect(() => EPUBCreator.checkContentFile(XHTML_WITH_XML_DECL, 'ch.xhtml', '2')).not.toThrow();
             });
-            it('should not throw for a file with no DOCTYPE', () => {
-                expect(() => EPUBCreator.checkContentFile(NO_DOCTYPE, 'ch.xhtml', '2')).not.toThrow();
+            it('should not throw for XHTML with XML declaration only', () => {
+                expect(() => EPUBCreator.checkContentFile(XHTML_XML_DECL_ONLY, 'ch.xhtml', '2')).not.toThrow();
+            });
+            it('should not throw for XHTML with PUBLIC DOCTYPE only', () => {
+                expect(() => EPUBCreator.checkContentFile(XHTML_PUBLIC_DOCTYPE_ONLY, 'ch.xhtml', '2')).not.toThrow();
             });
             it('should throw for a file with HTML5 DOCTYPE', () => {
                 expect(() => EPUBCreator.checkContentFile(HTML5, 'ch.html', '2'))
-                    .toThrowError(/not valid for EPUB v2/);
+                    .toThrowError(/must be XHTML/);
             });
             it('should throw for HTML5 DOCTYPE regardless of case', () => {
                 expect(() => EPUBCreator.checkContentFile(HTML5_UPPERCASE, 'ch.html', '2'))
-                    .toThrowError(/not valid for EPUB v2/);
+                    .toThrowError(/must be XHTML/);
+            });
+            it('should throw for a file with no XHTML signature', () => {
+                expect(() => EPUBCreator.checkContentFile(NO_XHTML_SIGNATURE, 'ch.html', '2'))
+                    .toThrowError(/must be XHTML/);
             });
         });
 
@@ -911,11 +920,11 @@ describe('EPUBCreator', () => {
                 expect(() => EPUBCreator.checkContentFile(HTML5_UPPERCASE, 'ch.html', '3')).not.toThrow();
             });
             it('should throw for an XHTML file', () => {
-                expect(() => EPUBCreator.checkContentFile(XHTML, 'ch.xhtml', '3'))
+                expect(() => EPUBCreator.checkContentFile(XHTML_WITH_XML_DECL, 'ch.xhtml', '3'))
                     .toThrowError(/must have HTML5 DOCTYPE/);
             });
-            it('should throw for a file with no DOCTYPE', () => {
-                expect(() => EPUBCreator.checkContentFile(NO_DOCTYPE, 'ch.xhtml', '3'))
+            it('should throw for a file with no XHTML signature', () => {
+                expect(() => EPUBCreator.checkContentFile(NO_XHTML_SIGNATURE, 'ch.xhtml', '3'))
                     .toThrowError(/must have HTML5 DOCTYPE/);
             });
         });

@@ -95,7 +95,7 @@ describe('EPUBCreator', () => {
                 await sut.create(fileName);
                 fail('expected error');
             } catch (error) {
-                expect(error.message).toMatch(/not valid for EPUB v2/);
+                expect(error.message).toMatch(/must be XHTML/);
             }
         });
     });
