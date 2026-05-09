@@ -308,39 +308,51 @@ describe('EPUBCreator', () => {
         it('should return the expected JSML [when there is no cover]', async () => {
             const mockSchema = true;
             sut = new EPUBCreator({ contentDir: 'root' }, mockSchema);
-            spyOn(EPUBCreator, 'getMediaTypeFromFilename').and.callFake((href) => `media-type of ${href}`);
             expect(await sut.buildManifest(walk)).toEqual([
                 'manifest',
                 ['item', { id: 'id-toc', href: 'toc.ncx', 'media-type': 'application/x-dtbncx+xml' }],
-                ['item', { id: 'id-000001', href: '001.html', 'media-type': 'media-type of 001.html' }],
-                ['item', { id: 'id-000002', href: '002.html', 'media-type': 'media-type of 002.html' }],
-                ['item', { id: 'id-000003', href: '003.xhtml', 'media-type': 'media-type of 003.xhtml' }],
-                ['item', { id: 'id-000004', href: 'images/001.jpg', 'media-type': 'media-type of 001.jpg' }],
-                ['item', { id: 'id-000005', href: 'images/002.png', 'media-type': 'media-type of 002.png' }],
-                ['item', { id: 'id-000006', href: 'images/003.svg', 'media-type': 'media-type of 003.svg' }],
-                ['item', { id: 'id-000007', href: 'images/004.gif', 'media-type': 'media-type of 004.gif' }],
-                ['item', { id: 'id-000008', href: 'style/default.css', 'media-type': 'media-type of default.css' }],
+                ['item', { id: 'id-000001', href: '001.html', 'media-type': 'application/xhtml+xml' }],
+                ['item', { id: 'id-000002', href: '002.html', 'media-type': 'application/xhtml+xml' }],
+                ['item', { id: 'id-000003', href: '003.xhtml', 'media-type': 'application/xhtml+xml' }],
+                ['item', { id: 'id-000004', href: 'images/001.jpg', 'media-type': 'image/jpeg' }],
+                ['item', { id: 'id-000005', href: 'images/002.png', 'media-type': 'image/png' }],
+                ['item', { id: 'id-000006', href: 'images/003.svg', 'media-type': 'image/svg+xml' }],
+                ['item', { id: 'id-000007', href: 'images/004.gif', 'media-type': 'image/gif' }],
+                ['item', { id: 'id-000008', href: 'style/default.css', 'media-type': 'text/css' }],
             ]);
             expect(walkArg).toBe('root');
         });
         it('should return the expected JSML [when there is a cover]', async () => {
             const mockSchema = true;
             sut = new EPUBCreator({ contentDir: 'root', cover: 'cover.jsp' }, mockSchema);
-            spyOn(EPUBCreator, 'getMediaTypeFromFilename').and.callFake((href) => `media-type of ${href}`);
             expect(await sut.buildManifest(walk)).toEqual([
                 'manifest',
                 ['item', { id: 'id-toc', href: 'toc.ncx', 'media-type': 'application/x-dtbncx+xml' }],
                 ['item', { id: 'id-cover', href: 'cover-page.html', 'media-type': 'application/xhtml+xml' }],
-                ['item', { id: 'id-000001', href: '001.html', 'media-type': 'media-type of 001.html' }],
-                ['item', { id: 'id-000002', href: '002.html', 'media-type': 'media-type of 002.html' }],
-                ['item', { id: 'id-000003', href: '003.xhtml', 'media-type': 'media-type of 003.xhtml' }],
-                ['item', { id: 'id-000004', href: 'images/001.jpg', 'media-type': 'media-type of 001.jpg' }],
-                ['item', { id: 'id-000005', href: 'images/002.png', 'media-type': 'media-type of 002.png' }],
-                ['item', { id: 'id-000006', href: 'images/003.svg', 'media-type': 'media-type of 003.svg' }],
-                ['item', { id: 'id-000007', href: 'images/004.gif', 'media-type': 'media-type of 004.gif' }],
-                ['item', { id: 'id-000008', href: 'style/default.css', 'media-type': 'media-type of default.css' }],
+                ['item', { id: 'id-000001', href: '001.html', 'media-type': 'application/xhtml+xml' }],
+                ['item', { id: 'id-000002', href: '002.html', 'media-type': 'application/xhtml+xml' }],
+                ['item', { id: 'id-000003', href: '003.xhtml', 'media-type': 'application/xhtml+xml' }],
+                ['item', { id: 'id-000004', href: 'images/001.jpg', 'media-type': 'image/jpeg' }],
+                ['item', { id: 'id-000005', href: 'images/002.png', 'media-type': 'image/png' }],
+                ['item', { id: 'id-000006', href: 'images/003.svg', 'media-type': 'image/svg+xml' }],
+                ['item', { id: 'id-000007', href: 'images/004.gif', 'media-type': 'image/gif' }],
+                ['item', { id: 'id-000008', href: 'style/default.css', 'media-type': 'text/css' }],
             ]);
             expect(walkArg).toBe('root');
+        });
+        it('should throw for a file with a media type not supported in EPUB v2', async () => {
+            const mockSchema = true;
+            sut = new EPUBCreator({ contentDir: 'root' }, mockSchema);
+            const walkerWithMp3 = function* () {
+                yield Promise.resolve(['root', [], ['chapter.html', 'audio.mp3']]);
+            };
+            sut.fileName2id.set('chapter.html', 'id-ch');
+            try {
+                await sut.buildManifest(walkerWithMp3);
+                fail('expected error');
+            } catch (error) {
+                expect(error.message).toBe('Media type "audio/mpeg" of file "audio.mp3" is not supported in EPUB v2');
+            }
         });
     });
 
@@ -433,7 +445,7 @@ describe('EPUBCreator', () => {
                 docType('html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"'),
                 [
                     'html',
-                    { xmlns: 'http://www.w3.org/1999/xhtml' },
+                    { xmlns: 'http://www.w3.org/1999/xhtml', 'xml:lang': 'en' },
                     [
                         'head',
                         ['title', 'Title']
@@ -647,6 +659,220 @@ describe('EPUBCreator', () => {
             expect(sut.buildCoverPage).toHaveBeenCalledWith();
             expect(sut.buildZip).toHaveBeenCalledWith('<container />', '<content />', '<toc />', '<cover />');
             expect(sut.saveZip).toHaveBeenCalledWith('zip', 'name');
+        });
+        it('should call the v3 methods when version is "3" [no cover]', async () => {
+            const mockSchema = true;
+            const sut = new EPUBCreator({}, mockSchema);
+            spyOn(sut, 'buildManifestV3').and.returnValue('manifest');
+            spyOn(sut, 'buildContainer').and.returnValue(['container']);
+            spyOn(sut, 'buildContentV3').and.returnValue(['content']);
+            spyOn(sut, 'buildTOC').and.returnValue(['toc']);
+            spyOn(sut, 'buildNavDoc').and.returnValue(['nav']);
+            spyOn(sut, 'buildZip').and.returnValue('zip');
+            spyOn(sut, 'saveZip').and.returnValue('done');
+            const result = await sut.create('name', '3');
+            expect(result).toBe('done');
+            expect(sut.buildManifestV3).toHaveBeenCalledWith();
+            expect(sut.buildContainer).toHaveBeenCalledWith();
+            expect(sut.buildContentV3).toHaveBeenCalledWith('manifest');
+            expect(sut.buildTOC).toHaveBeenCalledWith();
+            expect(sut.buildNavDoc).toHaveBeenCalledWith();
+            expect(sut.buildZip).toHaveBeenCalledWith(
+                '<container />', '<content />', '<toc />', undefined,
+                undefined, undefined, undefined, '<nav />'
+            );
+            expect(sut.saveZip).toHaveBeenCalledWith('zip', 'name');
+        });
+        it('should call the v3 methods when version is "3" [with cover]', async () => {
+            const mockSchema = true;
+            const sut = new EPUBCreator({ cover: 'cover.jpg' }, mockSchema);
+            spyOn(sut, 'buildManifestV3').and.returnValue('manifest');
+            spyOn(sut, 'buildContainer').and.returnValue(['container']);
+            spyOn(sut, 'buildContentV3').and.returnValue(['content']);
+            spyOn(sut, 'buildTOC').and.returnValue(['toc']);
+            spyOn(sut, 'buildCoverPageV3').and.returnValue(['cover']);
+            spyOn(sut, 'buildNavDoc').and.returnValue(['nav']);
+            spyOn(sut, 'buildZip').and.returnValue('zip');
+            spyOn(sut, 'saveZip').and.returnValue('done');
+            const result = await sut.create('name', '3');
+            expect(result).toBe('done');
+            expect(sut.buildManifestV3).toHaveBeenCalledWith();
+            expect(sut.buildCoverPageV3).toHaveBeenCalledWith();
+            expect(sut.buildZip).toHaveBeenCalledWith(
+                '<container />', '<content />', '<toc />', '<cover />',
+                undefined, undefined, undefined, '<nav />'
+            );
+        });
+    });
+
+    describe('buildManifestV3()', () => {
+        const walkerResult = [
+            ['root', ['images'], ['001.html']],
+            ['root/images', [], ['cover.jpg', '002.png']],
+        ];
+        function *walk () {
+            for (let i = 0; i < walkerResult.length; i++) {
+                yield Promise.resolve(walkerResult[i]);
+            }
+        }
+        it('should include nav item with properties="nav" and keep toc.ncx [no cover]', async () => {
+            const mockSchema = true;
+            sut = new EPUBCreator({ contentDir: 'root' }, mockSchema);
+            const manifest = await sut.buildManifestV3(walk);
+            expect(manifest[1]).toEqual(
+                ['item', { id: 'id-toc', href: 'toc.ncx', 'media-type': 'application/x-dtbncx+xml' }]
+            );
+            expect(manifest[2]).toEqual(
+                ['item', { id: 'id-nav', href: 'nav.xhtml', 'media-type': 'application/xhtml+xml', properties: 'nav' }]
+            );
+        });
+        it('should mark the cover image with properties="cover-image"', async () => {
+            const mockSchema = true;
+            sut = new EPUBCreator({ contentDir: 'root', cover: 'images/cover.jpg' }, mockSchema);
+            const manifest = await sut.buildManifestV3(walk);
+            const coverItem = manifest.find(
+                (item) => Array.isArray(item) && item[1] && item[1].href === 'images/cover.jpg'
+            );
+            expect(coverItem[1].properties).toBe('cover-image');
+        });
+        it('should not add properties to non-cover images', async () => {
+            const mockSchema = true;
+            sut = new EPUBCreator({ contentDir: 'root', cover: 'images/cover.jpg' }, mockSchema);
+            const manifest = await sut.buildManifestV3(walk);
+            const otherImage = manifest.find(
+                (item) => Array.isArray(item) && item[1] && item[1].href === 'images/002.png'
+            );
+            expect(otherImage[1].properties).toBeUndefined();
+        });
+    });
+
+    describe('buildContentV3()', () => {
+        it('should return JSML with version 3.0 and xml:lang on package', () => {
+            const mockSchema = true;
+            sut = new EPUBCreator({}, mockSchema);
+            spyOn(sut, 'buildMetadataV3').and.returnValue('metadata');
+            spyOn(sut, 'buildSpineV3').and.returnValue('spine');
+            const result = sut.buildContentV3('manifest');
+            expect(result[2][0]).toBe('package');
+            expect(result[2][1].version).toBe('3.0');
+            expect(result[2][1]['xml:lang']).toBe('en');
+            expect(result[2][1]['unique-identifier']).toBe('BookId');
+            expect(result[2].slice(2)).toEqual(['metadata', 'manifest', 'spine']);
+        });
+    });
+
+    describe('buildMetadataV3()', () => {
+        it('should use only xmlns:dc (no xmlns:opf) and not add cover meta', () => {
+            const mockSchema = true;
+            sut = new EPUBCreator({}, mockSchema);
+            sut.metadata = [['dc:title', 'Test']];
+            sut.cover = 'cover.jpg';
+            sut.fileName2id.set('cover.jpg', 'id-cover-img');
+            const result = sut.buildMetadataV3();
+            expect(result[1]).toEqual({ 'xmlns:dc': 'http://purl.org/dc/elements/1.1/' });
+            expect(result[1]['xmlns:opf']).toBeUndefined();
+            const hasCoverMeta = result.some(
+                (item) => Array.isArray(item) && item[0] === 'meta' && item[1] && item[1].name === 'cover'
+            );
+            expect(hasCoverMeta).toBe(false);
+        });
+    });
+
+    describe('buildSpineV3()', () => {
+        it('should return spine without toc attribute [no cover]', () => {
+            const mockSchema = true;
+            sut = new EPUBCreator({}, mockSchema);
+            sut.spine = ['1.xhtml'];
+            sut.fileName2id.set('1.xhtml', 'id-1');
+            expect(sut.buildSpineV3()).toEqual([
+                'spine',
+                ['itemref', { idref: 'id-1' }]
+            ]);
+        });
+        it('should return spine without toc attribute [with cover]', () => {
+            const mockSchema = true;
+            sut = new EPUBCreator({}, mockSchema);
+            sut.cover = 'cover.jpg';
+            sut.spine = ['1.xhtml'];
+            sut.fileName2id.set('1.xhtml', 'id-1');
+            expect(sut.buildSpineV3()).toEqual([
+                'spine',
+                ['itemref', { idref: 'id-cover' }],
+                ['itemref', { idref: 'id-1' }]
+            ]);
+        });
+    });
+
+    describe('buildCoverPageV3()', () => {
+        it('should throw if the cover is not an image', () => {
+            const mockSchema = true;
+            sut = new EPUBCreator({}, mockSchema);
+            sut.cover = 'cover.html';
+            try {
+                sut.buildCoverPageV3();
+            } catch (error) {
+                expect(error.message).toBe('Cover file "cover.html" is not an image');
+            }
+        });
+        it('should return HTML5 DOCTYPE and epub namespaces', () => {
+            const { JSMLUtils: { docType } } = require('@eit6609/jsml');
+            const mockSchema = true;
+            sut = new EPUBCreator({}, mockSchema);
+            sut.metadata = [['dc:title', 'Title'], ['dc:language', 'it']];
+            sut.cover = 'cover.jpg';
+            const result = sut.buildCoverPageV3();
+            expect(result[1]).toEqual(docType('html'));
+            const htmlAttrs = result[2][1];
+            expect(htmlAttrs['xmlns:epub']).toBe('http://www.idpf.org/2007/ops');
+            expect(htmlAttrs['xml:lang']).toBe('it');
+            const head = result[2][2];
+            expect(head[1]).toEqual(['meta', { charset: 'UTF-8' }]);
+        });
+    });
+
+    describe('buildNavDoc()', () => {
+        it('should return HTML5 DOCTYPE with epub:type="toc" nav and delegate to NavBuilder', () => {
+            const { JSMLUtils: { docType } } = require('@eit6609/jsml');
+            const mockSchema = true;
+            sut = new EPUBCreator({}, mockSchema);
+            const navBuilder = {
+                build () {},
+                result: ['ol', ['li', ['a', { href: '1.xhtml' }, 'Ch 1']]]
+            };
+            const result = sut.buildNavDoc(navBuilder);
+            expect(result[1]).toEqual(docType('html'));
+            const htmlAttrs = result[2][1];
+            expect(htmlAttrs['xmlns:epub']).toBe('http://www.idpf.org/2007/ops');
+            const nav = result[2][3][1];
+            expect(nav[0]).toBe('nav');
+            expect(nav[1]['epub:type']).toBe('toc');
+            expect(nav[2]).toBe(navBuilder.result);
+        });
+    });
+
+    describe('buildZip() with navDoc', () => {
+        it('should add nav.xhtml to zip when navDoc is provided', async () => {
+            const mockSchema = true;
+            sut = new EPUBCreator({ contentDir: 'root' }, mockSchema);
+            const zip = { file () {} };
+            spyOn(zip, 'file');
+            function *walk () {
+                yield Promise.resolve(['root', [], []]);
+            }
+            await sut.buildZip('container', 'content', 'toc', undefined, walk, zip, async () => '', 'navDoc');
+            expect(zip.file).toHaveBeenCalledWith('OEBPS/nav.xhtml', 'navDoc');
+        });
+        it('should not add nav.xhtml when navDoc is not provided', async () => {
+            const mockSchema = true;
+            sut = new EPUBCreator({ contentDir: 'root' }, mockSchema);
+            const zip = { file () {} };
+            spyOn(zip, 'file');
+            function *walk () {
+                yield Promise.resolve(['root', [], []]);
+            }
+            await sut.buildZip('container', 'content', 'toc', undefined, walk, zip, async () => '');
+            const navCall = zip.file.calls.all().find((c) => c.args[0] === 'OEBPS/nav.xhtml');
+            expect(navCall).toBeUndefined();
         });
     });
 
