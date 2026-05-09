@@ -3,11 +3,12 @@
 const
     { cloneDeep, find, forEach, isUndefined } = require('lodash'),
     { readFile, writeFile } = require('fs'),
-    { JSMLSerializer, JSMLUtils: { getChildren, validateJSML, xmlDeclaration, docType } } = require('@eit6609/jsml'),
+    { JSMLSerializer, JSMLUtils: { getChildren, validateJSML, xmlDeclaration, docType, destructureElement } } = require('@eit6609/jsml'),
     { walkAsync } = require('@eit6609/walker'),
     { join } = require('path'),
     { inspect, promisify } = require('util'),
     NavMapBuilder = require('./navmap-builder.js'),
+    NavBuilder = require('./nav-builder.js'),
     Joi = require('@hapi/joi'),
     JSZip = require('jszip'),
     Promise = require('bluebird'),
@@ -40,6 +41,27 @@ const
     COVER_PAGE_FILENAME = 'cover-page.html',
     COVER_PAGE_ID = 'id-cover',
     COVER_PAGE_MEDIA_TYPE = 'application/xhtml+xml';
+
+const
+    NAV_FILENAME = 'nav.xhtml',
+    NAV_ID = 'id-nav',
+    NAV_MEDIA_TYPE = 'application/xhtml+xml',
+    HTML5_DOCTYPE = docType('html');
+
+const
+    METADATA_ATTRIBUTES_V3 = { 'xmlns:dc': 'http://purl.org/dc/elements/1.1/' };
+
+const EPUB2_MEDIA_TYPES = new Set([
+    'application/xhtml+xml',
+    'application/x-dtbncx+xml',
+    'application/x-dtbook+xml',
+    'application/xml',
+    'text/css',
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/svg+xml',
+]);
 
 const
     DEFAULT_LANGUAGE = 'en',
@@ -90,6 +112,27 @@ class EPUBCreator {
                 return 'image/svg+xml';
             case 'css':
                 return 'text/css';
+            case 'mp3':
+                return 'audio/mpeg';
+            case 'm4a':
+                return 'audio/mp4';
+            case 'm4v':
+            case 'mp4':
+                return 'video/mp4';
+            case 'webm':
+                return 'video/webm';
+            case 'otf':
+                return 'font/otf';
+            case 'ttf':
+                return 'font/ttf';
+            case 'woff':
+                return 'font/woff';
+            case 'woff2':
+                return 'font/woff2';
+            case 'js':
+                return 'application/javascript';
+            case 'smil':
+                return 'application/smil+xml';
             default:
                 throw new Error(`Can't guess media type of file "${path}"`);
         }
@@ -217,7 +260,11 @@ class EPUBCreator {
                 const id = `id-${FORMATTER.format(counter++)}`;
                 const href = join(dirPath, fileName).substring(this.contentDir.length + 1);
                 this.fileName2id.set(href, id);
-                manifest.push(['item', { id, href, 'media-type': EPUBCreator.getMediaTypeFromFilename(fileName) }]);
+                const mediaType = EPUBCreator.getMediaTypeFromFilename(fileName);
+                if (!EPUB2_MEDIA_TYPES.has(mediaType)) {
+                    throw new Error(`Media type "${mediaType}" of file "${fileName}" is not supported in EPUB v2`);
+                }
+                manifest.push(['item', { id, href, 'media-type': mediaType }]);
             });
         }
         return manifest;
@@ -225,6 +272,14 @@ class EPUBCreator {
 
     buildContent (manifest) {
         const metadata = this.buildMetadata();
+        const lang = this.getFromMetadata('dc:language');
+        if (lang) {
+            for (let i = 2; i < metadata.length; i++) {
+                if (Array.isArray(metadata[i])) {
+                    this.setAttribute(metadata[i], 'xml:lang', lang);
+                }
+            }
+        }
         const spine = this.buildSpine();
         return [
             DOCUMENT,
@@ -293,7 +348,7 @@ class EPUBCreator {
             HTML_DOCTYPE,
             [
                 'html',
-                { xmlns: 'http://www.w3.org/1999/xhtml' },
+                { xmlns: 'http://www.w3.org/1999/xhtml', 'xml:lang': 'en' },
                 [
                     'head',
                     ['title', this.getFromMetadata('dc:title')]
@@ -317,7 +372,130 @@ class EPUBCreator {
         ];
     }
 
-    async buildZip (container, content, toc, coverPage, walk, zip, readFile) {
+    async buildManifestV3 (walk) {
+        const manifest = [
+            'manifest',
+            ['item', { 'id': TOC_ID, 'href': TOC_FILENAME, 'media-type': TOC_MEDIA_TYPE }],
+            ['item', { 'id': NAV_ID, 'href': NAV_FILENAME, 'media-type': NAV_MEDIA_TYPE, 'properties': 'nav' }],
+        ];
+        if (this.cover) {
+            manifest.push(
+                ['item', { 'id': COVER_PAGE_ID, 'href': COVER_PAGE_FILENAME, 'media-type': COVER_PAGE_MEDIA_TYPE }]
+            );
+            this.fileName2id.set(COVER_PAGE_FILENAME, COVER_PAGE_ID);
+        }
+        let counter = 1;
+        walk = walk || walkAsync;
+        for (const promise of walk(this.contentDir)) {
+            const [dirPath, , fileNames] = await promise;
+            forEach(fileNames, (fileName) => {
+                const id = `id-${FORMATTER.format(counter++)}`;
+                const href = join(dirPath, fileName).substring(this.contentDir.length + 1);
+                this.fileName2id.set(href, id);
+                const attrs = { id, href, 'media-type': EPUBCreator.getMediaTypeFromFilename(fileName) };
+                if (this.cover && href === this.cover) {
+                    attrs.properties = 'cover-image';
+                }
+                manifest.push(['item', attrs]);
+            });
+        }
+        return manifest;
+    }
+
+    buildContentV3 (manifest) {
+        const metadata = this.buildMetadataV3();
+        const spine = this.buildSpineV3();
+        const lang = this.getFromMetadata('dc:language') || DEFAULT_LANGUAGE;
+        return [
+            DOCUMENT,
+            XML_DECLARATION,
+            [
+                'package',
+                {
+                    'version': '3.0',
+                    'xmlns': 'http://www.idpf.org/2007/opf',
+                    'unique-identifier': 'BookId',
+                    'xml:lang': lang
+                },
+                metadata,
+                manifest,
+                spine
+            ]
+        ];
+    }
+
+    buildMetadataV3 () {
+        return ['metadata', METADATA_ATTRIBUTES_V3, ...cloneDeep(this.metadata)];
+    }
+
+    buildSpineV3 () {
+        const spine = ['spine'];
+        if (this.cover) {
+            spine.push(['itemref', { 'idref': COVER_PAGE_ID }]);
+        }
+        forEach(this.spine, (fileName) => spine.push(['itemref', { 'idref': this.getFileId(fileName) }]));
+        return spine;
+    }
+
+    buildCoverPageV3 () {
+        if (!EPUBCreator.getMediaTypeFromFilename(this.cover).startsWith('image/')) {
+            throw new Error(`Cover file "${this.cover}" is not an image`);
+        }
+        const lang = this.getFromMetadata('dc:language') || DEFAULT_LANGUAGE;
+        return [
+            DOCUMENT,
+            HTML5_DOCTYPE,
+            [
+                'html',
+                { xmlns: 'http://www.w3.org/1999/xhtml', 'xmlns:epub': 'http://www.idpf.org/2007/ops', 'xml:lang': lang },
+                [
+                    'head',
+                    ['meta', { charset: 'UTF-8' }],
+                    ['title', this.getFromMetadata('dc:title')]
+                ],
+                [
+                    'body',
+                    [
+                        'div',
+                        { style: 'text-align:center;height:100%;' },
+                        [
+                            'img',
+                            {
+                                alt: `Cover for "${this.getFromMetadata('dc:title')}"`,
+                                src: this.cover,
+                                style: 'max-width:100%;height:100%;'
+                            }
+                        ]
+                    ]
+                ]
+            ]
+        ];
+    }
+
+    buildNavDoc (navBuilder) {
+        navBuilder = navBuilder || new NavBuilder(this);
+        navBuilder.build(this.toc);
+        const lang = this.getFromMetadata('dc:language') || DEFAULT_LANGUAGE;
+        return [
+            DOCUMENT,
+            HTML5_DOCTYPE,
+            [
+                'html',
+                { xmlns: 'http://www.w3.org/1999/xhtml', 'xmlns:epub': 'http://www.idpf.org/2007/ops', 'xml:lang': lang },
+                [
+                    'head',
+                    ['meta', { charset: 'UTF-8' }],
+                    ['title', this.getFromMetadata('dc:title')]
+                ],
+                [
+                    'body',
+                    ['nav', { 'epub:type': 'toc', id: 'toc' }, navBuilder.result]
+                ]
+            ]
+        ];
+    }
+
+    async buildZip (container, content, toc, coverPage, walk, zip, readFile, navDoc) {
         walk = walk || walkAsync;
         zip = zip || new JSZip();
         readFile = readFile || readFilePromise;
@@ -327,6 +505,9 @@ class EPUBCreator {
         zip.file(join(CONTENT_DIR, TOC_FILENAME), toc);
         if (coverPage) {
             zip.file(join(CONTENT_DIR, COVER_PAGE_FILENAME), coverPage);
+        }
+        if (navDoc) {
+            zip.file(join(CONTENT_DIR, NAV_FILENAME), navDoc);
         }
         for (const promise of walk(this.contentDir)) {
             const [dirPath, , fileNames] = await promise;
@@ -344,15 +525,30 @@ class EPUBCreator {
         return (mockWriteFilePromise || writeFilePromise)(fileName, buffer);
     }
 
-    async create (fileName) {
-        const manifest = await this.buildManifest();
+    async create (fileName, version = '2') {
         const serializer = new JSMLSerializer({ spacesPerLevel: 4 });
         const container = serializer.serialize(this.buildContainer());
+        if (version === '3') {
+            const manifest = await this.buildManifestV3();
+            const content = serializer.serialize(this.buildContentV3(manifest));
+            const toc = serializer.serialize(this.buildTOC());
+            const coverPage = this.cover ? serializer.serialize(this.buildCoverPageV3()) : undefined;
+            const navDoc = serializer.serialize(this.buildNavDoc());
+            const zip = await this.buildZip(container, content, toc, coverPage, undefined, undefined, undefined, navDoc);
+            return this.saveZip(zip, fileName);
+        }
+        const manifest = await this.buildManifest();
         const content = serializer.serialize(this.buildContent(manifest));
         const toc = serializer.serialize(this.buildTOC());
         const coverPage = this.cover ? serializer.serialize(this.buildCoverPage()) : undefined;
         const zip = await this.buildZip(container, content, toc, coverPage);
         return this.saveZip(zip, fileName);
+    }
+
+    setAttribute(element, name, value) {
+        const { tag, attributes, children } = destructureElement(element);
+        const newAttrs = Object.assign({}, attributes, { [name]: value });
+        element.splice(0, element.length, tag, newAttrs, ...children);
     }
 
 }

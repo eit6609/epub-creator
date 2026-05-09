@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<package version="2.0" xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId">
-    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
-        <dc:date xml:lang="en">2000-01-01T00:00:00.000Z</dc:date>
-        <dc:identifier id="BookId" opf:scheme="UUID" xml:lang="en">test-identifier</dc:identifier>
-        <dc:language xml:lang="en">en</dc:language>
-        <dc:creator opf:role="aut" xml:lang="en">epub-creator integration spec</dc:creator>
-        <dc:title xml:lang="en">Test ePUB</dc:title>
-        <meta name="cover" content="id-000002" xml:lang="en" />
+<package version="3.0" xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId" xml:lang="en">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+        <dc:date>2000-01-01T00:00:00.000Z</dc:date>
+        <dc:identifier id="BookId" opf:scheme="UUID">test-identifier</dc:identifier>
+        <dc:language>en</dc:language>
+        <dc:creator opf:role="aut">epub-creator integration spec</dc:creator>
+        <dc:title>Test ePUB</dc:title>
     </metadata>
     <manifest>
         <item id="id-toc" href="toc.ncx" media-type="application/x-dtbncx+xml" />
+        <item id="id-nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav" />
         <item id="id-cover" href="cover-page.html" media-type="application/xhtml+xml" />
         <item id="id-000001" href="images/001.jpg" media-type="image/jpeg" />
-        <item id="id-000002" href="images/010.jpg" media-type="image/jpeg" />
+        <item id="id-000002" href="images/010.jpg" media-type="image/jpeg" properties="cover-image" />
         <item id="id-000003" href="images/epub.svg" media-type="image/svg+xml" />
         <item id="id-000004" href="images/toolbox.png" media-type="image/png" />
         <item id="id-000005" href="style/epub.css" media-type="text/css" />
@@ -20,7 +20,7 @@
         <item id="id-000007" href="text/002.xhtml" media-type="application/xhtml+xml" />
         <item id="id-000008" href="text/front.xhtml" media-type="application/xhtml+xml" />
     </manifest>
-    <spine toc="id-toc">
+    <spine>
         <itemref idref="id-cover" />
         <itemref idref="id-000008" />
         <itemref idref="id-000006" />
