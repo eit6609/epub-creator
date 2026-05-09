@@ -40,34 +40,36 @@ async function compareEntryWithFile (zip, entryName, fileName) {
     }
 }
 
+const COMMON_OPTIONS = {
+    contentDir: 'spec/fixtures/content',
+    spine: ['text/front.xhtml', 'text/001.xhtml', 'text/002.xhtml'],
+    toc: [
+        [{ label: 'Front Matter', href: 'text/front.xhtml' }],
+        [{ label: 'Chapter One', href: 'text/001.xhtml' }],
+        [{ label: 'Chapter Two', href: 'text/002.xhtml' }]
+    ],
+    cover: 'images/010.jpg',
+    simpleMetadata: {
+        title: 'Test ePUB',
+        author: 'epub-creator integration spec'
+    },
+    metadata: [
+        ['dc:date', '2000-01-01T00:00:00.000Z'],
+        ['dc:identifier', { id: 'BookId', 'opf:scheme': 'UUID' }, 'test-identifier']
+    ]
+};
+
 describe('EPUBCreator', () => {
 
+    const fileName = 'spec/fixtures/temp/result.epub';
+
     afterEach(async () => {
-        unlinkPromise('spec/fixtures/temp/result.epub');
+        unlinkPromise(fileName);
     });
 
-    describe('build()', () => {
+    describe('build() v2', () => {
         it('should create the expected epub', async () => {
-            const options = {
-                contentDir: 'spec/fixtures/content',
-                spine: ['text/front.xhtml', 'text/001.xhtml', 'text/002.xhtml'],
-                toc: [
-                    [{ label: 'Front Matter', href: 'text/front.xhtml' }],
-                    [{ label: 'Chapter One', href: 'text/001.xhtml' }],
-                    [{ label: 'Chapter Two', href: 'text/002.xhtml' }]
-                ],
-                cover: 'images/010.jpg',
-                simpleMetadata: {
-                    title: 'Test ePUB',
-                    author: 'epub-creator integration spec'
-                },
-                metadata: [
-                    ['dc:date', '2000-01-01T00:00:00.000Z'],
-                    ['dc:identifier', { id: 'BookId', 'opf:scheme': 'UUID' }, 'test-identifier']
-                ]
-            };
-            const fileName = 'spec/fixtures/temp/result.epub';
-            const sut = new EPUBCreator(options);
+            const sut = new EPUBCreator(COMMON_OPTIONS);
             await sut.create(fileName);
             const mimeType = await readMimeType(fileName);
             expect(mimeType).toBe('mimetypeapplication/epub+zip');
@@ -76,11 +78,34 @@ describe('EPUBCreator', () => {
             await compareEntryWithFile(zip, 'OEBPS/content.opf', 'spec/fixtures/content.opf');
             await compareEntryWithFile(zip, 'OEBPS/toc.ncx', 'spec/fixtures/toc.ncx');
             await compareEntryWithFile(zip, 'OEBPS/cover-page.html', 'spec/fixtures/cover-page.html');
-            for (const promise of walkAsync('spec/fixtures/content')) {
+            for (const promise of walkAsync(COMMON_OPTIONS.contentDir)) {
                 const [dirPath, , fileNames] = await promise;
                 await Promise.each(fileNames, async (fileName) => {
                     const filePath = join(dirPath, fileName);
-                    const archivePath = join('OEBPS', filePath.substring(options.contentDir.length + 1));
+                    const archivePath = join('OEBPS', filePath.substring(COMMON_OPTIONS.contentDir.length + 1));
+                    await compareEntryWithFile(zip, archivePath, filePath);
+                });
+            }
+        });
+    });
+
+    describe('build() v3', () => {
+        it('should create the expected epub', async () => {
+            const sut = new EPUBCreator(COMMON_OPTIONS);
+            await sut.create(fileName, '3');
+            const mimeType = await readMimeType(fileName);
+            expect(mimeType).toBe('mimetypeapplication/epub+zip');
+            const zip = await loadZip(fileName);
+            await compareEntryWithFile(zip, 'META-INF/container.xml', 'spec/fixtures/container.xml');
+            await compareEntryWithFile(zip, 'OEBPS/content.opf', 'spec/fixtures/content-v3.opf');
+            await compareEntryWithFile(zip, 'OEBPS/toc.ncx', 'spec/fixtures/toc.ncx');
+            await compareEntryWithFile(zip, 'OEBPS/nav.xhtml', 'spec/fixtures/nav.xhtml');
+            await compareEntryWithFile(zip, 'OEBPS/cover-page.html', 'spec/fixtures/cover-page-v3.html');
+            for (const promise of walkAsync(COMMON_OPTIONS.contentDir)) {
+                const [dirPath, , fileNames] = await promise;
+                await Promise.each(fileNames, async (fileName) => {
+                    const filePath = join(dirPath, fileName);
+                    const archivePath = join('OEBPS', filePath.substring(COMMON_OPTIONS.contentDir.length + 1));
                     await compareEntryWithFile(zip, archivePath, filePath);
                 });
             }
